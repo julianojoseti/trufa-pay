@@ -174,7 +174,7 @@ function App() {
       notify('Não consegui salvar no Firebase. Confira as regras do Firestore.', 'error');
       return false;
     } finally {
-      setSaving(false);
+      setSaving(false) ;
     }
   }
   const setProductsSync = (v) => { const next = typeof v === 'function' ? v(products) : v; setProducts(next); persist({products:next}); };
