@@ -1,58 +1,19 @@
-# TrufaPay Casamento Online
+# TrufaPay Casamento - Fix feedback e contabilização
 
-Versão evoluída da POC com:
+Versão com:
+- Feedback visual fixo após criar/salvar/excluir/marcar pago.
+- Indicador de salvamento na nuvem.
+- Correção no fluxo de persistência para contabilizar venda imediatamente e sincronizar no Firestore.
 
-- Login
-- Modo demo/local sem Firebase
-- Preparado para Firebase Authentication
-- Preparado para Firestore Database
-- Dashboard da meta do casamento
-- Histórico de vendas
-- Controle de clientes
-- Sabores e estoque
-- Cobrança por WhatsApp
-- Exportação CSV
-
-## Rodar localmente
-
+## Rodar local
 ```bash
 npm install
 npm run dev
 ```
 
-Acesse a URL mostrada no terminal, normalmente:
-
+## Publicar
 ```bash
-http://localhost:5173
+git add .
+git commit -m "corrige feedback e contabilizacao de vendas"
+git push
 ```
-
-## Login no modo demo
-
-```text
-E-mail: admin@trufapay.com
-Senha: 123456
-```
-
-## Ativar Firebase
-
-1. Crie um projeto no Firebase.
-2. Ative Authentication com Email/Senha.
-3. Crie o Firestore Database.
-4. Copie `.env.example` para `.env`.
-5. Preencha as variáveis com as chaves do seu app web Firebase.
-6. Rode novamente:
-
-```bash
-npm run dev
-```
-
-## Publicar no Vercel
-
-1. Suba o projeto para o GitHub.
-2. Importe no Vercel.
-3. Configure as variáveis de ambiente do Firebase no Vercel.
-4. Faça o deploy.
-
-## Observação importante
-
-Sem configurar Firebase, o sistema funciona em modo demo/local usando o navegador. Com Firebase configurado, os dados ficam online e podem ser acessados por mais de um dispositivo.
