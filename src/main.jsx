@@ -98,9 +98,7 @@ function Login({ onLogin }) {
     <button className="google wide" onClick={signInWithGoogle}>Entrar com Google</button>
     <button className="secondary wide" onClick={()=>setMode(mode === 'login' ? 'register' : 'login')}><UserPlus size={18}/>{mode === 'login' ? 'Criar novo acesso' : 'Já tenho acesso'}</button>
   </div></div>;
-} 
-
-function App() {
+}
 
 function App() {
   const [user, setUser] = useState(() => load('tp_session', null));
