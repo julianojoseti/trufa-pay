@@ -20,3 +20,7 @@
 .stockActions .mini {
   min-height: 34px;
 }
+.google{background:white;border:1px solid #e5e5e5;color:#333;padding:12px;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;gap:10px;font-weight:800;margin-top:8px}
+.google:hover{box-shadow:0 8px 20px rgba(0,0,0,.06)}
+.google img{width:18px;height:18px}
+@media(max-width:900px){ .google{width:100%;} }

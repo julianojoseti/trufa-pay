@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { createRoot } from 'react-dom/client';
 import { Candy, Users, Package, ShoppingCart, MessageCircle, Plus, Search, DollarSign, TrendingUp, AlertCircle, CheckCircle2, Clock, Trash2, Heart, CalendarDays, Target, Settings, Download, History, LogOut, Lock, UserPlus, Database, WifiOff, Menu, X, Pencil, Save } from 'lucide-react';
@@ -73,6 +73,19 @@ function Login({ onLogin }) {
       onLogin({ id:u.id, name:u.name, email:u.email, online:false });
     } catch (e) { setError(e.message || 'Não foi possível entrar.'); }
   }
+
+  async function signInWithGoogle() {
+    setError('');
+    try {
+      if (!hasFirebase) { setError('Configure o Firebase para usar login com Google.'); return; }
+      const auth = firebaseAuth();
+      const provider = new GoogleAuthProvider();
+      const cred = await signInWithPopup(auth, provider);
+      onLogin({ id: cred.user.uid, name: cred.user.displayName || cred.user.email, email: cred.user.email, online:true });
+      return;
+    } catch (e) { setError(e.message || 'Não foi possível entrar com Google.'); }
+  }
+
   return <div className="loginPage"><div className="loginCard">
     <div className="loginBrand"><div className="logo"><Candy/></div><div><strong>TrufaPay</strong><span>Projeto Casamento 💒</span></div></div>
     <h1>{mode === 'login' ? 'Entrar' : 'Criar acesso'}</h1>
@@ -82,9 +95,12 @@ function Login({ onLogin }) {
     <label>Senha<input type="password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/></label>
     {error && <div className="loginError">{error}</div>}
     <button className="primary wide" onClick={submit}><Lock size={18}/>{mode === 'login' ? 'Entrar' : 'Criar conta'}</button>
+    <button className="google wide" onClick={signInWithGoogle}>Entrar com Google</button>
     <button className="secondary wide" onClick={()=>setMode(mode === 'login' ? 'register' : 'login')}><UserPlus size={18}/>{mode === 'login' ? 'Criar novo acesso' : 'Já tenho acesso'}</button>
   </div></div>;
-}
+} 
+
+function App() {
 
 function App() {
   const [user, setUser] = useState(() => load('tp_session', null));
