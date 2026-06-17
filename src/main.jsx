@@ -104,7 +104,7 @@ function App() {
   const [products, setProducts] = useState(() => load('tp_products', defaults.products));
   const [customers, setCustomers] = useState(() => load('tp_customers', defaults.customers));
   const [sales, setSales] = useState(() => load('tp_sales', defaults.sales));
-  const [settings, setSettings] = useState(() => ({ ...defaults.settings, ...load('tp_settings', {}) }));
+  const [settings, setSettings] = useState(() => load('tp_settings', defaults.settings));
   const [cloudReady, setCloudReady] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toast, setToast] = useState(null);
@@ -148,7 +148,7 @@ function App() {
           setProducts(d.products || defaults.products);
           setCustomers(d.customers || defaults.customers);
           setSales(d.sales || []);
-          setSettings({ ...defaults.settings, ...d.settings });
+          setSettings(d.settings || defaults.settings);
           setCloudReady(true);
         }, (err) => {
           console.error('Erro Firestore:', err);
@@ -335,15 +335,5 @@ function Products({products,setProducts,notify}){
   }
   return <section className="split"><div className="panel"><h2>Sabores e estoque</h2>{products.map(p=><div className="product" key={p.id}><div><strong>{p.name}</strong><span>Venda {money(p.price)} • Custo {money(p.cost)} • Estoque {p.stock} • Mín. {p.minStock}</span><div className="stockActions"><button className="mini" onClick={()=>adjustStock(p.id,-1)}>-1</button><button className="mini" onClick={()=>adjustStock(p.id,1)}>+1</button><button className="mini" onClick={()=>startEdit(p)}><Pencil size={16}/>Editar</button></div></div><button className="iconBtn" onClick={()=>removeProduct(p.id)}><Trash2 size={16}/></button></div>)}</div><div className="panel"><h2>{editingId ? 'Editar sabor/estoque' : 'Adicionar sabor'}</h2>{['name','price','cost','stock','minStock'].map(k=><label key={k}>{k==='name'?'Nome':k==='price'?'Preço':k==='cost'?'Custo':k==='stock'?'Estoque':'Estoque mínimo'}<input type={k==='name'?'text':'number'} value={f[k]} onChange={e=>setF({...f,[k]:e.target.value})}/></label>)}<button className="primary wide" onClick={saveProduct}>{editingId ? <><Save/>Salvar alterações</> : <>Salvar</>}</button>{editingId && <button className="secondary wide" onClick={resetForm}>Cancelar edição</button>}</div></section>; }
 function Customers({customers,setCustomers,notify}){ const [f,setF]=useState({name:'',phone:'',address:''}); function add(){ if(!f.name||!f.phone){ notify('Informe nome e WhatsApp do cliente.', 'error'); return; } setCustomers([...customers,{...f,id:String(Date.now())}]); setF({name:'',phone:'',address:''}); notify('Cliente salvo com sucesso!'); } function removeCustomer(id){ setCustomers(customers.filter(x=>x.id!==id)); notify('Cliente removido.'); } return <section className="split"><div className="panel"><h2>Clientes</h2>{customers.map(c=><div className="product" key={c.id}><div><strong>{c.name}</strong><span>{c.phone} • {c.address}</span></div><button className="iconBtn" onClick={()=>removeCustomer(c.id)}><Trash2 size={16}/></button></div>)}</div><div className="panel"><h2>Novo cliente</h2><label>Nome<input value={f.name} onChange={e=>setF({...f,name:e.target.value})}/></label><label>WhatsApp<input value={f.phone} onChange={e=>setF({...f,phone:e.target.value})}/></label><label>Local<input value={f.address} onChange={e=>setF({...f,address:e.target.value})}/></label><button className="primary wide" onClick={add}>Salvar</button></div></section>; }
-function Config({settings,setSettings,notify}){
-  const values = { ...defaults.settings, ...settings };
-  const update = (key, value) => {
-    const next = key === 'goal' ? Number(value) : value;
-    setSettings(prev => ({ ...prev, [key]: next }));
-  };
-  function saveSettings(){
-    notify('Configurações salvas com sucesso!');
-  }
-  return <section className="panel narrow"><h2>Configurações</h2><label>Nome do projeto<input value={values.coupleName || ''} onChange={e=>update('coupleName', e.target.value)}/></label><label>Nome da venda<input value={values.sellerName || ''} onChange={e=>update('sellerName', e.target.value)}/></label><label>Data do casamento<input type="date" value={values.weddingDate || ''} onChange={e=>update('weddingDate', e.target.value)}/></label><label>Meta<input type="number" value={values.goal || ''} onChange={e=>update('goal', e.target.value)}/></label><label>Chave Pix<input value={values.pixKey || ''} onChange={e=>update('pixKey', e.target.value)}/></label><label>Mensagem de WhatsApp<textarea rows="6" value={values.whatsappTemplate || ''} onChange={e=>update('whatsappTemplate', e.target.value)} placeholder='Olá {{customerName}}!\n\nValor: {{total}}\nPix: {{pix}}\n{{sellerName}}' /></label><p className="fieldHint">Use <code>{{customerName}}</code>, <code>{{total}}</code>, <code>{{pix}}</code> e <code>{{sellerName}}</code> na mensagem.</p><button className="primary wide" onClick={saveSettings}>Salvar configurações</button></section>;
-}
+function Config({settings,setSettings,notify}){ const [f,setF]=useState(settings); function saveSettings(){ setSettings({...f,goal:Number(f.goal)}); notify('Configurações salvas com sucesso!'); } return <section className="panel narrow"><h2>Configurações</h2><label>Nome do projeto<input value={f.coupleName} onChange={e=>setF({...f,coupleName:e.target.value})}/></label><label>Nome da venda<input value={f.sellerName} onChange={e=>setF({...f,sellerName:e.target.value})}/></label><label>Data do casamento<input type="date" value={f.weddingDate} onChange={e=>setF({...f,weddingDate:e.target.value})}/></label><label>Meta<input type="number" value={f.goal} onChange={e=>setF({...f,goal:e.target.value})}/></label><label>Chave Pix<input value={f.pixKey} onChange={e=>setF({...f,pixKey:e.target.value})}/></label><label>Mensagem de WhatsApp<textarea rows="6" value={f.whatsappTemplate} onChange={e=>setF({...f,whatsappTemplate:e.target.value})} placeholder='Olá {{customerName}}!\n\nValor: {{total}}\nPix: {{pix}}\n{{sellerName}}' /></label><button className="primary wide" onClick={saveSettings}>Salvar configurações</button></section>; }
 createRoot(document.getElementById('root')).render(<App />);
