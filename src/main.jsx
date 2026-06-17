@@ -53,7 +53,7 @@ const defaults = {
 
 function Login({ onLogin }) {
   const [mode, setMode] = useState('login');
-  const [form, setForm] = useState({ name:'', email:'admin@trufapay.com', password:'123456' });
+  const [form, setForm] = useState({ name:'', email:'', password:'' });
   const [error, setError] = useState('');
 
   async function submit() {
