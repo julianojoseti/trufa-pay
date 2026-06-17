@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { createRoot } from 'react-dom/client';
 import { Candy, Users, Package, ShoppingCart, MessageCircle, Plus, Search, DollarSign, TrendingUp, AlertCircle, CheckCircle2, Clock, Trash2, Heart, CalendarDays, Target, Settings, Download, History, LogOut, Lock, UserPlus, Database, WifiOff, Menu, X, Pencil, Save } from 'lucide-react';
@@ -52,71 +52,42 @@ const defaults = {
 };
 
 function Login({ onLogin }) {
-  const [screen, setScreen] = useState('method');
-  const [authMode, setAuthMode] = useState('login');
+  const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ name:'', email:'admin@trufapay.com', password:'123456' });
   const [error, setError] = useState('');
-  
-  async function signInWithGoogle() {
-    setError('');
-    try {
-      if (!hasFirebase) { setError('Configure o Firebase para usar login com Google.'); return; }
-      const auth = firebaseAuth();
-      const provider = new GoogleAuthProvider();
-      const cred = await signInWithPopup(auth, provider);
-      onLogin({ id: cred.user.uid, name: cred.user.displayName || cred.user.email, email: cred.user.email, online:true });
-    } catch (e) { setError(e.message || 'Não foi possível entrar com Google.'); }
-  }
 
-  async function submitEmail() {
+  async function submit() {
     setError('');
     try {
       if (hasFirebase) {
         const auth = firebaseAuth();
         let cred;
-        if (authMode === 'login') cred = await signInWithEmailAndPassword(auth, form.email, form.password);
-        else { cred = await createUserWithEmailAndPassword(auth, form.email, form.password); await updateProfile(cred.user, { displayName: form.name || 'Vendedor' }); }
+        if (mode === 'login') {
+          cred = await signInWithEmailAndPassword(auth, form.email, form.password);
+        } else {
+          cred = await createUserWithEmailAndPassword(auth, form.email, form.password);
+          await updateProfile(cred.user, { displayName: form.name || 'Vendedor' });
+        }
         onLogin({ id: cred.user.uid, name: cred.user.displayName || form.name || 'Vendedor', email: cred.user.email, online:true });
         return;
       }
       const users = load('tp_users', [{ id:'demo', name:'Admin', email:'admin@trufapay.com', password:'123456' }]);
-      if (authMode === 'register') { const u={ id:String(Date.now()), name:form.name, email:form.email, password:form.password }; localStorage.setItem('tp_users', JSON.stringify([...users,u])); onLogin({ id:u.id, name:u.name, email:u.email, online:false }); return; }
+      if (mode === 'register') { const u={ id:String(Date.now()), name:form.name, email:form.email, password:form.password }; localStorage.setItem('tp_users', JSON.stringify([...users,u])); onLogin({ id:u.id, name:u.name, email:u.email, online:false }); return; }
       const u = users.find(x => x.email.toLowerCase() === form.email.toLowerCase() && x.password === form.password);
       if (!u) throw new Error('E-mail ou senha inválidos.');
       onLogin({ id:u.id, name:u.name, email:u.email, online:false });
-    } catch (e) { setError(e.message || 'Não foi possível processar.'); }
+    } catch (e) { setError(e.message || 'Não foi possível entrar.'); }
   }
-
-  const isLoginMode = authMode === 'login';
 
   return <div className="loginPage"><div className="loginCard">
     <div className="loginBrand"><div className="logo"><Candy/></div><div><strong>TrufaPay</strong></div></div>
-    
-    {screen === 'method' && <>
-      <h1>{isLoginMode ? 'Entrar' : 'Criar conta'}</h1>
-      <button className="google wide" onClick={signInWithGoogle}>
-        <span style={{fontSize:'18px'}}>🔍</span> {isLoginMode ? 'Entrar' : 'Criar'} com Google
-      </button>
-      <div className="divider">ou</div>
-      <button className="secondary wide" onClick={()=>setScreen('email')}>
-        <Lock size={18}/> {isLoginMode ? 'Entrar' : 'Criar'} com E-mail
-      </button>
-      {isLoginMode ? (
-        <p className="toggleAuth">Não tem conta? <button className="link" onClick={()=>setAuthMode('register')}>Criar agora</button></p>
-      ) : (
-        <p className="toggleAuth">Já tem conta? <button className="link" onClick={()=>setAuthMode('login')}>Entrar</button></p>
-      )}
-    </>}
-
-    {screen === 'email' && <>
-      <h1>{isLoginMode ? 'Entrar com E-mail' : 'Criar conta'}</h1>
-      {authMode === 'register' && <label>Nome<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Seu nome completo"/></label>}
-      <label>E-mail<input value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="seu@email.com"/></label>
-      <label>Senha<input type="password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} placeholder="••••••"/></label>
-      {error && <div className="loginError">{error}</div>}
-      <button className="primary wide" onClick={submitEmail}><Lock size={18}/>{isLoginMode ? 'Entrar' : 'Criar conta'}</button>
-      <button className="secondary wide" onClick={()=>setScreen('method')}><span>←</span> Voltar</button>
-    </>}
+    <h1>{mode === 'login' ? 'Entrar' : 'Criar conta'}</h1>
+    {mode === 'register' && <label>Nome<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Seu nome"/></label>}
+    <label>E-mail<input value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="seu@email.com"/></label>
+    <label>Senha<input type="password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} placeholder="••••••"/></label>
+    {error && <div className="loginError">{error}</div>}
+    <button className="primary wide" onClick={submit}><Lock size={18}/>{mode === 'login' ? 'Entrar' : 'Criar conta'}</button>
+    <button className="secondary wide" onClick={()=>setMode(mode === 'login' ? 'register' : 'login')}><UserPlus size={18}/>{mode === 'login' ? 'Criar novo acesso' : 'Já tenho acesso'}</button>
   </div></div>;
 }
 
