@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp, collection, getDocs, writeBatch } from 'firebase/firestore';
 import { createRoot } from 'react-dom/client';
 import { Candy, Users, Package, ShoppingCart, MessageCircle, Plus, Search, DollarSign, TrendingUp, AlertCircle, CheckCircle2, Clock, Trash2, Heart, CalendarDays, Target, Settings, Download, History, LogOut, Lock, UserPlus, Database, WifiOff, Menu, X, Pencil, Save } from 'lucide-react';
 import './style.css';
@@ -174,18 +174,18 @@ function App() {
   useEffect(() => {
     if (!user || !hasFirebase) return;
     const db = firestoreDb();
-    const refs = [doc(db, 'workspaces', WORKSPACE_ID)];
-    if (user.id && user.id !== WORKSPACE_ID) refs.push(doc(db, 'workspaces', user.id));
-    const unsubs = [];
+    const sharedRef = doc(db, 'workspaces', WORKSPACE_ID);
+    const workspacesRef = collection(db, 'workspaces');
+    let unsub = () => {};
     let active = true;
 
-    async function syncCloudData() {
+    async function syncCloudData(snapshot) {
       try {
-        const snaps = await Promise.all(refs.map((ref) => getDoc(ref)));
-        const docs = snaps.filter((snap) => snap.exists()).map((snap) => snap.data());
+        const snap = snapshot ?? await getDocs(workspacesRef);
+        const docs = snap.docs.map((workspace) => workspace.data());
         if (!docs.length) {
           const seed = { ...defaults, clientRev: Date.now(), createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
-          await Promise.all(refs.map((ref) => setDoc(ref, seed, { merge: true })));
+          await setDoc(sharedRef, seed, { merge: true });
           if (!active) return;
           setProducts(defaults.products);
           setCustomers(defaults.customers);
@@ -210,27 +210,25 @@ function App() {
 
     (async () => {
       await syncCloudData();
-      refs.forEach((ref) => {
-        const unsub = onSnapshot(ref, () => {
-          syncCloudData();
-        }, (err) => {
-          console.error('Erro Firestore:', err);
-          if (active) setCloudReady(false);
-        });
-        unsubs.push(unsub);
+      unsub = onSnapshot(workspacesRef, (snap) => {
+        syncCloudData(snap);
+      }, (err) => {
+        console.error('Erro Firestore:', err);
+        if (active) setCloudReady(false);
       });
     })();
     return () => {
       active = false;
-      unsubs.forEach((unsub) => unsub());
+      unsub();
     };
   }, [user?.id]);
 
   async function persist(next) {
     if (!user || !hasFirebase) return true;
     const rev = Date.now();
-    const refs = [doc(firestoreDb(), 'workspaces', WORKSPACE_ID)];
-    if (user.id && user.id !== WORKSPACE_ID) refs.push(doc(firestoreDb(), 'workspaces', user.id));
+    const db = firestoreDb();
+    const refs = [doc(db, 'workspaces', WORKSPACE_ID)];
+    if (user.id && user.id !== WORKSPACE_ID) refs.push(doc(db, 'workspaces', user.id));
     lastLocalRev.current = rev;
     setSaving(true);
     try {
@@ -242,7 +240,9 @@ function App() {
         clientRev: rev,
         updatedAt: serverTimestamp()
       };
-      await Promise.all(refs.map((ref) => setDoc(ref, payload, { merge: true })));
+      const batch = writeBatch(db);
+      refs.forEach((ref) => batch.set(ref, payload, { merge: true }));
+      await batch.commit();
       setCloudReady(true);
       return true;
     } catch (err) {
