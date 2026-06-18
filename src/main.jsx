@@ -15,6 +15,7 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 const hasFirebase = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId && !String(firebaseConfig.apiKey).includes('cole_aqui'));
+const WORKSPACE_ID = 'shared';
 
 function firebaseApp() {
   if (!hasFirebase) return null;
@@ -33,6 +34,18 @@ const today = (offset = 0) => { const d = new Date(); d.setDate(d.getDate() + of
 const money = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const load = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) || f; } catch { return f; } };
 const saveCsv = (filename, rows) => { const csv = rows.map(r => r.map(v => `"${String(v ?? '').replaceAll('"','""')}"`).join(';')).join('\n'); const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8;'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); URL.revokeObjectURL(a.href); };
+const saleItems = (sale) => {
+  if (Array.isArray(sale.items) && sale.items.length) return sale.items;
+  if (sale.productId) return [{ productId: sale.productId, qty: Number(sale.qty || 1) }];
+  return [];
+};
+const saleLabel = (sale, products) => {
+  const items = saleItems(sale);
+  return items.map(item => {
+    const product = products.find(p => p.id === item.productId);
+    return `${product?.name || 'Sabor desconhecido'} x${item.qty}`;
+  }).join(', ');
+};
 
 const defaults = {
   products: [
@@ -101,10 +114,10 @@ function Login({ onLogin }) {
 function App() {
   const [user, setUser] = useState(() => load('tp_session', null));
   const [screen, setScreen] = useState('dashboard');
-  const [products, setProducts] = useState(() => load('tp_products', defaults.products));
-  const [customers, setCustomers] = useState(() => load('tp_customers', defaults.customers));
-  const [sales, setSales] = useState(() => load('tp_sales', defaults.sales));
-  const [settings, setSettings] = useState(() => load('tp_settings', defaults.settings));
+  const [products, setProducts] = useState(() => hasFirebase ? defaults.products : load('tp_products', defaults.products));
+  const [customers, setCustomers] = useState(() => hasFirebase ? defaults.customers : load('tp_customers', defaults.customers));
+  const [sales, setSales] = useState(() => hasFirebase ? defaults.sales : load('tp_sales', defaults.sales));
+  const [settings, setSettings] = useState(() => hasFirebase ? defaults.settings : load('tp_settings', defaults.settings));
   const [cloudReady, setCloudReady] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toast, setToast] = useState(null);
@@ -123,15 +136,15 @@ function App() {
   }
 
   useEffect(()=>{ user ? localStorage.setItem('tp_session', JSON.stringify(user)) : localStorage.removeItem('tp_session'); },[user]);
-  useEffect(()=>localStorage.setItem('tp_products', JSON.stringify(products)),[products]);
-  useEffect(()=>localStorage.setItem('tp_customers', JSON.stringify(customers)),[customers]);
-  useEffect(()=>localStorage.setItem('tp_sales', JSON.stringify(sales)),[sales]);
-  useEffect(()=>localStorage.setItem('tp_settings', JSON.stringify(settings)),[settings]);
+  useEffect(()=>{ if (!hasFirebase) localStorage.setItem('tp_products', JSON.stringify(products)); },[products]);
+  useEffect(()=>{ if (!hasFirebase) localStorage.setItem('tp_customers', JSON.stringify(customers)); },[customers]);
+  useEffect(()=>{ if (!hasFirebase) localStorage.setItem('tp_sales', JSON.stringify(sales)); },[sales]);
+  useEffect(()=>{ if (!hasFirebase) localStorage.setItem('tp_settings', JSON.stringify(settings)); },[settings]);
 
   useEffect(() => {
     if (!user || !hasFirebase) return;
     const db = firestoreDb();
-    const ref = doc(db, 'workspaces', user.id);
+    const ref = doc(db, 'workspaces', WORKSPACE_ID);
     let unsub = () => {};
     (async () => {
       try {
@@ -177,7 +190,7 @@ function App() {
         clientRev: rev,
         updatedAt: serverTimestamp()
       };
-      await setDoc(doc(db,'workspaces',user.id), payload, { merge:true });
+      await setDoc(doc(db, 'workspaces', WORKSPACE_ID), payload, { merge: true });
       setCloudReady(true);
       return true;
     } catch (err) {
@@ -186,7 +199,7 @@ function App() {
       notify('Não consegui salvar no Firebase. Confira as regras do Firestore.', 'error');
       return false;
     } finally {
-      setSaving(false) ;
+      setSaving(false);
     }
   }
   const setProductsSync = (v) => { const next = typeof v === 'function' ? v(products) : v; setProducts(next); persist({products:next}); };
@@ -194,19 +207,61 @@ function App() {
   const setSalesSync = (v) => { const next = typeof v === 'function' ? v(sales) : v; setSales(next); persist({sales:next}); };
   const setSettingsSync = (v) => { const next = typeof v === 'function' ? v(settings) : v; setSettings(next); persist({settings:next}); };
 
-  const stats = useMemo(()=>{ const received=sales.filter(s=>s.paid).reduce((a,s)=>a+s.total,0); const pending=sales.filter(s=>!s.paid).reduce((a,s)=>a+s.total,0); const total=sales.reduce((a,s)=>a+s.total,0); const profit=sales.reduce((a,s)=>{ const p=products.find(x=>x.id===s.productId); return a + (s.total - ((p?.cost||0)*s.qty));},0); const progress=settings.goal?Math.min(100,received/settings.goal*100):0; const daysLeft=Math.max(0,Math.ceil((new Date(settings.weddingDate+'T00:00:00')-new Date())/86400000)); return {received,pending,total,profit,progress,remaining:Math.max(0,settings.goal-received),daysLeft}; },[sales,products,settings]);
+  const stats = useMemo(()=>{
+    const saleTotal = (s) => saleItems(s).reduce((sum,item)=>{
+      const p = products.find(x=>x.id===item.productId);
+      return sum + (Number(p?.price||0) * Number(item.qty||0));
+    },0);
+    const saleCost = (s) => saleItems(s).reduce((sum,item)=>{
+      const p = products.find(x=>x.id===item.productId);
+      return sum + (Number(p?.cost||0) * Number(item.qty||0));
+    },0);
+    const received = sales.filter(s=>s.paid).reduce((a,s)=>a + saleTotal(s), 0);
+    const pending = sales.filter(s=>!s.paid).reduce((a,s)=>a + saleTotal(s), 0);
+    const total = sales.reduce((a,s)=>a + saleTotal(s), 0);
+    const profit = sales.reduce((a,s)=>a + (saleTotal(s) - saleCost(s)), 0);
+    const progress = settings.goal ? Math.min(100, received / settings.goal * 100) : 0;
+    const daysLeft = Math.max(0, Math.ceil((new Date(settings.weddingDate+'T00:00:00') - new Date()) / 86400000));
+    return {received,pending,total,profit,progress,remaining:Math.max(0,settings.goal-received),daysLeft};
+  },[sales,products,settings]);
   if (!user) return <Login onLogin={setUser}/>;
 
   async function addSale(form) {
-    const p=products.find(x=>x.id===form.productId);
-    const c=customers.find(x=>x.id===form.customerId);
-    const qty=Number(form.qty);
+    const c = customers.find(x=>x.id===form.customerId);
+    const items = Array.isArray(form.items) ? form.items : saleItems(form);
     if(!c) { notify('Selecione um cliente válido.', 'error'); return false; }
-    if(!p) { notify('Selecione um sabor válido.', 'error'); return false; }
-    if(!qty || qty <= 0) { notify('Informe uma quantidade válida.', 'error'); return false; }
-    const sale={ id:String(Date.now()), customerId:c.id, productId:p.id, qty, total:Number(p.price||0)*qty, paid:Boolean(form.paid), method:form.paid?(form.method||'Pix'):'Pendente', date:form.purchaseDate || today(0), purchaseDate:form.purchaseDate || today(0), dueDate:form.dueDate || today(0), sellerId:user.id, sellerName:user.name || user.email || 'Vendedor', sellerEmail:user.email || '' };
+    if(!items.length) { notify('Adicione pelo menos um sabor à venda.', 'error'); return false; }
+    const validatedItems = items.map(item => ({ productId: String(item.productId), qty: Number(item.qty || 0) }));
+    const totalsByProduct = {};
+    for (const item of validatedItems) {
+      if (!item.productId) { notify('Selecione um sabor válido em todos os itens.', 'error'); return false; }
+      if (!item.qty || item.qty <= 0) { notify('Informe uma quantidade válida em todos os itens.', 'error'); return false; }
+      totalsByProduct[item.productId] = (totalsByProduct[item.productId] || 0) + item.qty;
+    }
+    const saleTotal = validatedItems.reduce((sum,item)=>{
+      const p = products.find(x=>x.id===item.productId);
+      if (!p) { notify('Selecione um sabor válido em todos os itens.', 'error'); throw new Error('Produto inválido'); }
+      return sum + Number(p.price||0) * item.qty;
+    },0);
+    const sale = {
+      id: String(Date.now()),
+      customerId: c.id,
+      items: validatedItems,
+      total: saleTotal,
+      paid: Boolean(form.paid),
+      method: form.paid ? (form.method||'Pix') : 'Pendente',
+      date: form.purchaseDate || today(0),
+      purchaseDate: form.purchaseDate || today(0),
+      dueDate: form.dueDate || today(0),
+      sellerId: user.id,
+      sellerName: user.name || user.email || 'Vendedor',
+      sellerEmail: user.email || ''
+    };
     const nextSales = [sale, ...sales];
-    const nextProducts = products.map(x=>x.id===p.id?{...x,stock:Math.max(0,Number(x.stock||0)-qty)}:x);
+    const nextProducts = products.map(p => {
+      const qty = totalsByProduct[p.id] || 0;
+      return qty ? {...p, stock: Math.max(0, Number(p.stock||0) - qty)} : p;
+    });
     setSales(nextSales);
     setProducts(nextProducts);
     const ok = await persist({ sales: nextSales, products: nextProducts });
@@ -245,36 +300,74 @@ function App() {
     <main><header><div><h1>{settings.coupleName}</h1></div><button className="secondary" onClick={()=>{ exportCsv(sales,customers,products); notify('Arquivo CSV gerado.'); }}><Download size={18}/>Exportar CSV</button></header>{actionBanner && <div className={`actionBanner ${actionBanner.type}`}><CheckCircle2 size={18}/><span>{actionBanner.message}</span></div>}{saving && <div className="syncBanner">Salvando alterações na nuvem...</div>}{screen==='dashboard'&&<Dashboard stats={stats} sales={sales} products={products} customers={customers} settings={settings} markPaid={markPaid}/>} {screen==='vendas'&&<NewSale products={products} customers={customers} onAdd={addSale}/>} {screen==='historico'&&<HistoryPage sales={sales} products={products} customers={customers} markPaid={markPaid} delSale={delSale} settings={settings}/>} {screen==='clientes'&&<Customers customers={customers} setCustomers={setCustomersSync} notify={notify}/>} {screen==='produtos'&&<Products products={products} setProducts={setProductsSync} notify={notify}/>} {screen==='config'&&<Config settings={settings} setSettings={setSettingsSync} notify={notify}/>}</main>
   </div>;
 }
-function exportCsv(sales,customers,products){ saveCsv('vendas-trufapay.csv', [['Data da compra','Cliente','Produto','Qtd','Total','Status','Vendedor'], ...sales.map(s=>[s.purchaseDate || s.date, customers.find(c=>c.id===s.customerId)?.name, products.find(p=>p.id===s.productId)?.name, s.qty, s.total, s.paid?'Pago':'Pendente', s.sellerName])]); }
+function exportCsv(sales,customers,products){
+  saveCsv('vendas-trufapay.csv', [
+    ['Data da compra','Cliente','Produtos','Total','Status','Vendedor'],
+    ...sales.map(s=>[
+      s.purchaseDate || s.date,
+      customers.find(c=>c.id===s.customerId)?.name,
+      saleLabel(s,products),
+      s.total,
+      s.paid ? 'Pago' : 'Pendente',
+      s.sellerName
+    ])
+  ]);
+}
 function formatTemplate(template, values){ return String(template).replace(/\{\{(\w+)\}\}/g, (_, key) => String(values[key] ?? '')); }
-function whats(s,c,pix,settings){ const template = settings?.whatsappTemplate || 'Olá {{customerName}}!\n\nPassando para lembrar do pagamento das trufas.\nValor: {{total}}\nPix: {{pix}}\n\nObrigado!\n{{sellerName}}'; const text = formatTemplate(template, { customerName: c?.name || '', total: money(s.total), pix, sellerName: settings?.sellerName || '', product: settings?.productName || '', date: s.purchaseDate || s.date || '' }); return `https://wa.me/${(c?.phone||'').replace(/\D/g,'')}?text=${encodeURIComponent(text)}`; }
-function Dashboard({stats,sales,products,customers,settings,markPaid}){ const pending=sales.filter(s=>!s.paid).slice(0,5); return <><section className="hero"><div><span className="tag"><Heart size={18}/>Meta do casamento</span><h2>{money(settings.goal)}</h2><div className="progress"><div style={{width:`${stats.progress}%`}}/></div><p>{money(stats.received)} arrecadado • faltam {money(stats.remaining)} • {stats.progress.toFixed(1)}%</p></div><div className="days"><CalendarDays/><strong>{stats.daysLeft}</strong><span>dias restantes</span></div></section><section className="grid4"><Card icon={DollarSign} title="Recebido" value={money(stats.received)}/><Card icon={Clock} title="Pendente" value={money(stats.pending)}/><Card icon={TrendingUp} title="Lucro estimado" value={money(stats.profit)}/><Card icon={ShoppingCart} title="Total vendido" value={money(stats.total)}/></section><section className="split"><div className="panel"><h2>Pendências</h2>{pending.length?pending.map(s=><SaleRow key={s.id} s={s} p={products.find(p=>p.id===s.productId)} c={customers.find(c=>c.id===s.customerId)} settings={settings} markPaid={markPaid}/>):<p className="empty">Nenhuma pendência.</p>}</div><div className="panel"><h2>Alertas de estoque</h2>{products.filter(p=>p.stock<=p.minStock).map(p=><div className="alert" key={p.id}><AlertCircle/><div><strong>{p.name}</strong><span>Saldo baixo: {p.stock}</span></div></div>)}</div></section></>; }
+function whats(s,c,pix,settings){ const template = settings?.whatsappTemplate || 'Olá {{customerName}}!\n\nPassando para lembrar do pagamento das trufas.\nValor: {{total}}\nPix: {{pix}}\n\nObrigado!\n{{sellerName}}'; const text = formatTemplate(template, { customerName: c?.name || '', total: money(s.total), pix, sellerName: settings?.sellerName || '', product: saleLabel(s, settings?.products || []), date: s.purchaseDate || s.date || '' }); return `https://wa.me/${(c?.phone||'').replace(/\D/g,'')}?text=${encodeURIComponent(text)}`; }
+function Dashboard({stats,sales,products,customers,settings,markPaid}){ const pending=sales.filter(s=>!s.paid).slice(0,5); return <><section className="hero"><div><span className="tag"><Heart size={18}/>Meta do casamento</span><h2>{money(settings.goal)}</h2><div className="progress"><div style={{width:`${stats.progress}%`}}/></div><p>{money(stats.received)} arrecadado • faltam {money(stats.remaining)} • {stats.progress.toFixed(1)}%</p></div><div className="days"><CalendarDays/><strong>{stats.daysLeft}</strong><span>dias restantes</span></div></section><section className="grid4"><Card icon={DollarSign} title="Recebido" value={money(stats.received)}/><Card icon={Clock} title="Pendente" value={money(stats.pending)}/><Card icon={TrendingUp} title="Lucro estimado" value={money(stats.profit)}/><Card icon={ShoppingCart} title="Total vendido" value={money(stats.total)}/></section><section className="split"><div className="panel"><h2>Pendências</h2>{pending.length?pending.map(s=><SaleRow key={s.id} s={s} products={products} c={customers.find(c=>c.id===s.customerId)} settings={settings} markPaid={markPaid}/>):<p className="empty">Nenhuma pendência.</p>}</div><div className="panel"><h2>Alertas de estoque</h2>{products.filter(p=>p.stock<=p.minStock).map(p=><div className="alert" key={p.id}><AlertCircle/><div><strong>{p.name}</strong><span>Saldo baixo: {p.stock}</span></div></div>)}</div></section></>; }
 function Card({icon:Icon,title,value}){ return <div className="card"><div className="cardIcon"><Icon/></div><span>{title}</span><strong>{value}</strong></div>; }
-function SaleRow({s,p,c,settings,markPaid,delSale}){ return <div className="row"><div><strong>{c?.name}</strong><span>{p?.name} • {s.qty} un • Compra: {s.purchaseDate || s.date} • Vendedor: {s.sellerName || 'Vendedor'}</span></div><b>{money(s.total)}</b><em className={s.paid?'paid':'pending'}>{s.paid?'Pago':'Pendente'}</em>{!s.paid&&<a className="whats" target="_blank" href={whats(s,c,settings.pixKey,settings)}><MessageCircle size={16}/>Cobrar</a>}{!s.paid&&<button className="mini" onClick={()=>markPaid(s.id)}><CheckCircle2 size={16}/>Pago</button>}{delSale&&<button className="iconBtn" onClick={()=>delSale(s.id)}><Trash2 size={16}/></button>}</div>; }
+function SaleRow({s,products,c,settings,markPaid,delSale}){ const label = saleLabel(s, products); return <div className="row"><div><strong>{c?.name}</strong><span>{label} • Compra: {s.purchaseDate || s.date} • Vendedor: {s.sellerName || 'Vendedor'}</span></div><b>{money(s.total)}</b><em className={s.paid?'paid':'pending'}>{s.paid?'Pago':'Pendente'}</em>{!s.paid&&<a className="whats" target="_blank" href={whats(s,c,settings.pixKey,settings)}><MessageCircle size={16}/>Cobrar</a>}{!s.paid&&<button className="mini" onClick={()=>markPaid(s.id)}><CheckCircle2 size={16}/>Pago</button>}{delSale&&<button className="iconBtn" onClick={()=>delSale(s.id)}><Trash2 size={16}/></button>}</div>; }
 function NewSale({products,customers,onAdd}){
-  const [f,setF]=useState({customerId:'',productId:'',qty:1,paid:true,method:'Pix',purchaseDate:today(0),dueDate:today(0)});
+  const [f,setF]=useState({
+    customerId:'',
+    items:[{productId:'',qty:1}],
+    paid:true,
+    method:'Pix',
+    purchaseDate:today(0),
+    dueDate:today(0)
+  });
   useEffect(()=>{
-    setF(prev=>({
-      ...prev,
-      customerId: customers.some(c=>c.id===prev.customerId) ? prev.customerId : (customers[0]?.id || ''),
-      productId: products.some(p=>p.id===prev.productId) ? prev.productId : (products[0]?.id || '')
-    }));
+    setF(prev=>{
+      const customerId = customers.some(c=>c.id===prev.customerId) ? prev.customerId : (customers[0]?.id || '');
+      const items = (Array.isArray(prev.items) && prev.items.length ? prev.items : [{productId:'', qty:1}]).map((item, index) => ({
+        productId: products.some(p=>p.id===item.productId) ? item.productId : (index===0 ? (products[0]?.id || '') : item.productId || ''),
+        qty: Number(item.qty) || 1
+      }));
+      if (!items[0]?.productId && products[0]) items[0].productId = products[0].id;
+      return { ...prev, customerId, items };
+    });
   },[customers,products]);
-  const p=products.find(x=>x.id===f.productId);
   const hasBase = customers.length > 0 && products.length > 0;
+  const total = saleItems(f).reduce((sum,item)=>{
+    const p = products.find(x=>x.id===item.productId);
+    return sum + Number(p?.price||0) * Number(item.qty||0);
+  },0);
+  function updateItem(index, key, value){ setF(prev=>({
+    ...prev,
+    items: prev.items.map((item,i)=> i===index ? { ...item, [key]: key==='qty' ? Number(value) : value } : item)
+  })); }
+  function addItem(){ setF(prev=>({ ...prev, items:[...prev.items, { productId: products[0]?.id || '', qty:1 }] })); }
+  function removeItem(index){ setF(prev=>({ ...prev, items: prev.items.filter((_,i)=>i!==index) })); }
   async function submit(){
     const ok = await onAdd(f);
-    if(ok){ setF(prev=>({...prev, qty:1, paid:true, method:'Pix', purchaseDate:today(0), dueDate:today(0)})); }
+    if(ok){ setF(prev=>({ ...prev, items:[{ productId: products[0]?.id || '', qty:1 }], paid:true, method:'Pix', purchaseDate:today(0), dueDate:today(0) })); }
   }
   return <section className="panel narrow"><h2>Nova venda</h2>
     {!hasBase && <div className="loginError">Cadastre pelo menos um cliente e um sabor antes de registrar venda.</div>}
     <label>Cliente<select value={f.customerId} onChange={e=>setF({...f,customerId:e.target.value})}>{customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-    <label>Sabor<select value={f.productId} onChange={e=>setF({...f,productId:e.target.value})}>{products.map(p=><option key={p.id} value={p.id}>{p.name} - {money(p.price)} / estoque {p.stock}</option>)}</select></label>
+    <div className="saleItems">
+      {f.items.map((item,index)=><div className="saleItem" key={index}>
+        <label>Sabor<select value={item.productId} onChange={e=>updateItem(index,'productId',e.target.value)}>{products.map(p=><option key={p.id} value={p.id}>{p.name} - {money(p.price)} / estoque {p.stock}</option>)}</select></label>
+        <label>Quantidade<input type="number" min="1" value={item.qty} onChange={e=>updateItem(index,'qty',e.target.value)}/></label>
+        {index > 0 && <button type="button" className="mini secondary" onClick={()=>removeItem(index)}>Remover</button>}
+      </div>)}
+      <button type="button" className="secondary wide" onClick={addItem}><Plus/>Adicionar sabor</button>
+    </div>
     <label>Data da compra<input type="date" value={f.purchaseDate} onChange={e=>setF({...f,purchaseDate:e.target.value})}/></label>
-    <label>Quantidade<input type="number" min="1" value={f.qty} onChange={e=>setF({...f,qty:e.target.value})}/></label>
     <div className="toggle"><button type="button" className={f.paid?'active':''} onClick={()=>setF({...f,paid:true})}>Pago</button><button type="button" className={!f.paid?'active':''} onClick={()=>setF({...f,paid:false})}>Pendente</button></div>
     {!f.paid&&<label>Vencimento<input type="date" value={f.dueDate} onChange={e=>setF({...f,dueDate:e.target.value})}/></label>}
-    <div className="totalBox"><span>Total</span><strong>{money((p?.price||0)*Number(f.qty||0))}</strong></div>
+    <div className="totalBox"><span>Total</span><strong>{money(total)}</strong></div>
     <button className="primary wide" disabled={!hasBase} onClick={submit}><Plus/>Registrar venda</button>
   </section>;
 }
