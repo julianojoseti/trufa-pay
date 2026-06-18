@@ -71,6 +71,33 @@ const defaults = {
   }
 };
 
+const toList = (value) => (Array.isArray(value) ? value : []);
+const mergeById = (...lists) => {
+  const map = new Map();
+  lists.flat().forEach((item) => {
+    if (!item || item.id == null) return;
+    const id = String(item.id);
+    map.set(id, { ...item, id });
+  });
+  return [...map.values()];
+};
+const mergeWorkspaceData = (records) => {
+  const ordered = toList(records).sort((a, b) => Number(a?.clientRev || 0) - Number(b?.clientRev || 0));
+  return ordered.reduce((acc, record) => ({
+    products: mergeById(acc.products, toList(record?.products)),
+    customers: mergeById(acc.customers, toList(record?.customers)),
+    sales: mergeById(acc.sales, toList(record?.sales)),
+    settings: record?.settings ? { ...acc.settings, ...record.settings } : acc.settings,
+    clientRev: Math.max(acc.clientRev, Number(record?.clientRev || 0))
+  }), {
+    products: [],
+    customers: [],
+    sales: [],
+    settings: { ...defaults.settings },
+    clientRev: 0
+  });
+};
+
 function Login({ onLogin }) {
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ name:'', email:'', password:'' });
@@ -112,11 +139,11 @@ function Login({ onLogin }) {
 }
 
 function App() {
-  const [user, setUser] = useState(() => load('tp_session', null));
+  const [user, setUser] = useState(() => hasFirebase ? null : load('tp_session', null));
   const [screen, setScreen] = useState('dashboard');
-  const [products, setProducts] = useState(() => hasFirebase ? defaults.products : load('tp_products', defaults.products));
-  const [customers, setCustomers] = useState(() => hasFirebase ? defaults.customers : load('tp_customers', defaults.customers));
-  const [sales, setSales] = useState(() => hasFirebase ? defaults.sales : load('tp_sales', defaults.sales));
+  const [products, setProducts] = useState(() => hasFirebase ? [] : load('tp_products', defaults.products));
+  const [customers, setCustomers] = useState(() => hasFirebase ? [] : load('tp_customers', defaults.customers));
+  const [sales, setSales] = useState(() => hasFirebase ? [] : load('tp_sales', defaults.sales));
   const [settings, setSettings] = useState(() => hasFirebase ? defaults.settings : load('tp_settings', defaults.settings));
   const [cloudReady, setCloudReady] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -135,7 +162,10 @@ function App() {
     window.__tpBannerTimer = window.setTimeout(() => setActionBanner(null), 6500);
   }
 
-  useEffect(()=>{ user ? localStorage.setItem('tp_session', JSON.stringify(user)) : localStorage.removeItem('tp_session'); },[user]);
+  useEffect(()=>{
+    if (hasFirebase) return;
+    user ? localStorage.setItem('tp_session', JSON.stringify(user)) : localStorage.removeItem('tp_session');
+  },[user]);
   useEffect(()=>{ if (!hasFirebase) localStorage.setItem('tp_products', JSON.stringify(products)); },[products]);
   useEffect(()=>{ if (!hasFirebase) localStorage.setItem('tp_customers', JSON.stringify(customers)); },[customers]);
   useEffect(()=>{ if (!hasFirebase) localStorage.setItem('tp_sales', JSON.stringify(sales)); },[sales]);
@@ -144,44 +174,66 @@ function App() {
   useEffect(() => {
     if (!user || !hasFirebase) return;
     const db = firestoreDb();
-    const ref = doc(db, 'workspaces', WORKSPACE_ID);
-    let unsub = () => {};
-    (async () => {
+    const refs = [doc(db, 'workspaces', WORKSPACE_ID)];
+    if (user.id && user.id !== WORKSPACE_ID) refs.push(doc(db, 'workspaces', user.id));
+    const unsubs = [];
+    let active = true;
+
+    async function syncCloudData() {
       try {
-        const snap = await getDoc(ref);
-        if (!snap.exists()) {
-          await setDoc(ref, { products, customers, sales, settings, clientRev: Date.now(), createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-        }
-        unsub = onSnapshot(ref, (s) => {
-          const d = s.data();
-          if (!d) return;
-          const remoteRev = Number(d.clientRev || 0);
-          if (remoteRev && remoteRev < lastLocalRev.current) return;
-          if (remoteRev) lastLocalRev.current = Math.max(lastLocalRev.current, remoteRev);
-          setProducts(d.products || defaults.products);
-          setCustomers(d.customers || defaults.customers);
-          setSales(d.sales || []);
-          setSettings(d.settings || defaults.settings);
+        const snaps = await Promise.all(refs.map((ref) => getDoc(ref)));
+        const docs = snaps.filter((snap) => snap.exists()).map((snap) => snap.data());
+        if (!docs.length) {
+          const seed = { ...defaults, clientRev: Date.now(), createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+          await Promise.all(refs.map((ref) => setDoc(ref, seed, { merge: true })));
+          if (!active) return;
+          setProducts(defaults.products);
+          setCustomers(defaults.customers);
+          setSales(defaults.sales);
+          setSettings(defaults.settings);
           setCloudReady(true);
+          return;
+        }
+        const merged = mergeWorkspaceData(docs);
+        if (!active) return;
+        if (merged.clientRev) lastLocalRev.current = Math.max(lastLocalRev.current, merged.clientRev);
+        setProducts(merged.products);
+        setCustomers(merged.customers);
+        setSales(merged.sales);
+        setSettings(merged.settings);
+        setCloudReady(true);
+      } catch (err) {
+        console.error('Erro ao sincronizar Firestore:', err);
+        if (active) setCloudReady(false);
+      }
+    }
+
+    (async () => {
+      await syncCloudData();
+      refs.forEach((ref) => {
+        const unsub = onSnapshot(ref, () => {
+          syncCloudData();
         }, (err) => {
           console.error('Erro Firestore:', err);
-          setCloudReady(false);
+          if (active) setCloudReady(false);
         });
-      } catch (err) {
-        console.error('Erro ao preparar Firestore:', err);
-        setCloudReady(false);
-      }
+        unsubs.push(unsub);
+      });
     })();
-    return () => unsub();
+    return () => {
+      active = false;
+      unsubs.forEach((unsub) => unsub());
+    };
   }, [user?.id]);
 
   async function persist(next) {
     if (!user || !hasFirebase) return true;
     const rev = Date.now();
+    const refs = [doc(firestoreDb(), 'workspaces', WORKSPACE_ID)];
+    if (user.id && user.id !== WORKSPACE_ID) refs.push(doc(firestoreDb(), 'workspaces', user.id));
     lastLocalRev.current = rev;
     setSaving(true);
     try {
-      const db = firestoreDb();
       const payload = {
         products: next.products ?? products,
         customers: next.customers ?? customers,
@@ -190,7 +242,7 @@ function App() {
         clientRev: rev,
         updatedAt: serverTimestamp()
       };
-      await setDoc(doc(db, 'workspaces', WORKSPACE_ID), payload, { merge: true });
+      await Promise.all(refs.map((ref) => setDoc(ref, payload, { merge: true })));
       setCloudReady(true);
       return true;
     } catch (err) {
