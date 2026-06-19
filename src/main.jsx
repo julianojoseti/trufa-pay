@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp, writeBatch, runTransaction } from 'firebase/firestore';
 import { createRoot } from 'react-dom/client';
 import { Candy, Users, Package, ShoppingCart, MessageCircle, Plus, Search, DollarSign, TrendingUp, AlertCircle, CheckCircle2, Clock, Trash2, Heart, CalendarDays, Target, Settings, Download, History, LogOut, Lock, UserPlus, Database, WifiOff, Menu, X, Pencil, Save } from 'lucide-react';
 import './style.css';
@@ -233,6 +233,57 @@ function App() {
       setSaving(false);
     }
   }
+
+  async function mutateSharedWorkspace(mutator) {
+    if (!user || !hasFirebase) return { ok: false, error: 'Usuário não autenticado.' };
+    const db = firestoreDb();
+    const sharedRef = doc(db, 'workspaces', WORKSPACE_ID);
+    const userRef = user.id && user.id !== WORKSPACE_ID ? doc(db, 'workspaces', user.id) : null;
+    setSaving(true);
+    try {
+      const payload = await runTransaction(db, async (tx) => {
+        const snap = await tx.get(sharedRef);
+        const data = snap.exists() ? snap.data() : {};
+        const current = {
+          products: Array.isArray(data.products) ? data.products : [],
+          customers: Array.isArray(data.customers) ? data.customers : [],
+          sales: Array.isArray(data.sales) ? data.sales : [],
+          settings: data.settings ? { ...defaults.settings, ...data.settings } : { ...defaults.settings }
+        };
+        const mutation = mutator(current);
+        if (!mutation?.ok) throw new Error(mutation?.error || 'Não foi possível salvar as alterações.');
+        const rev = Date.now();
+        const nextPayload = {
+          products: mutation.data.products,
+          customers: mutation.data.customers,
+          sales: mutation.data.sales,
+          settings: mutation.data.settings,
+          clientRev: rev,
+          updatedAt: serverTimestamp()
+        };
+        tx.set(sharedRef, nextPayload, { merge: true });
+        return nextPayload;
+      });
+      if (userRef) {
+        await setDoc(userRef, payload, { merge: true });
+      }
+      lastLocalRev.current = Math.max(lastLocalRev.current, Number(payload.clientRev || 0));
+      setProducts(payload.products);
+      setCustomers(payload.customers);
+      setSales(payload.sales);
+      setSettings(payload.settings);
+      setCloudReady(true);
+      return { ok: true, data: payload };
+    } catch (err) {
+      console.error('Erro de transação no Firestore:', err);
+      setCloudReady(false);
+      notify(err.message || 'Não consegui salvar no Firebase.', 'error');
+      return { ok: false, error: err.message || 'Erro de transação' };
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const setProductsSync = (v) => { const next = typeof v === 'function' ? v(products) : v; setProducts(next); persist({products:next}); };
   const setCustomersSync = (v) => { const next = typeof v === 'function' ? v(customers) : v; setCustomers(next); persist({customers:next}); };
   const setSalesSync = (v) => { const next = typeof v === 'function' ? v(sales) : v; setSales(next); persist({sales:next}); };
@@ -258,73 +309,181 @@ function App() {
   if (!user) return <Login onLogin={setUser}/>;
 
   async function addSale(form) {
-    const c = customers.find(x=>x.id===form.customerId);
     const items = Array.isArray(form.items) ? form.items : saleItems(form);
-    if(!c) { notify('Selecione um cliente válido.', 'error'); return false; }
     if(!items.length) { notify('Adicione pelo menos um sabor à venda.', 'error'); return false; }
     const validatedItems = items.map(item => ({ productId: String(item.productId), qty: Number(item.qty || 0) }));
-    const totalsByProduct = {};
     for (const item of validatedItems) {
       if (!item.productId) { notify('Selecione um sabor válido em todos os itens.', 'error'); return false; }
       if (!item.qty || item.qty <= 0) { notify('Informe uma quantidade válida em todos os itens.', 'error'); return false; }
-      totalsByProduct[item.productId] = (totalsByProduct[item.productId] || 0) + item.qty;
     }
-    const saleTotal = validatedItems.reduce((sum,item)=>{
-      const p = products.find(x=>x.id===item.productId);
-      if (!p) { notify('Selecione um sabor válido em todos os itens.', 'error'); throw new Error('Produto inválido'); }
-      if (item.qty > Number(p.stock || 0)) { notify(`Estoque insuficiente para ${p.name}. Disponível: ${p.stock}.`, 'error'); throw new Error('Estoque insuficiente'); }
-      return sum + Number(p.price||0) * item.qty;
-    },0);
-    const sale = {
-      id: String(Date.now()),
-      customerId: c.id,
-      items: validatedItems,
-      total: saleTotal,
-      paid: Boolean(form.paid),
-      method: form.paid ? (form.method||'Pix') : 'Pendente',
-      date: form.purchaseDate || today(0),
-      purchaseDate: form.purchaseDate || today(0),
-      dueDate: form.dueDate || today(0),
-      sellerId: user.id,
-      sellerName: user.name || user.email || 'Vendedor',
-      sellerEmail: user.email || ''
-    };
-    const nextSales = [sale, ...sales];
-    const nextProducts = products.map(p => {
-      const qty = totalsByProduct[p.id] || 0;
-      return qty ? {...p, stock: Math.max(0, Number(p.stock||0) - qty)} : p;
+
+    if (!hasFirebase) {
+      const c = customers.find(x=>x.id===form.customerId);
+      if(!c) { notify('Selecione um cliente válido.', 'error'); return false; }
+      const totalsByProduct = {};
+      for (const item of validatedItems) totalsByProduct[item.productId] = (totalsByProduct[item.productId] || 0) + item.qty;
+      for (const p of products) {
+        const requested = Number(totalsByProduct[p.id] || 0);
+        if (requested > Number(p.stock || 0)) { notify(`Estoque insuficiente para ${p.name}. Disponível: ${p.stock}.`, 'error'); return false; }
+      }
+      const saleTotal = validatedItems.reduce((sum,item)=>{
+        const p = products.find(x=>x.id===item.productId);
+        if (!p) return sum;
+        return sum + Number(p.price||0) * item.qty;
+      },0);
+      const sale = {
+        id: String(Date.now()),
+        customerId: c.id,
+        items: validatedItems,
+        total: saleTotal,
+        paid: Boolean(form.paid),
+        method: form.paid ? (form.method||'Pix') : 'Pendente',
+        date: form.purchaseDate || today(0),
+        purchaseDate: form.purchaseDate || today(0),
+        dueDate: form.dueDate || today(0),
+        sellerId: user.id,
+        sellerName: user.name || user.email || 'Vendedor',
+        sellerEmail: user.email || ''
+      };
+      const nextSales = [sale, ...sales];
+      const nextProducts = products.map(p => {
+        const qty = totalsByProduct[p.id] || 0;
+        return qty ? {...p, stock: Math.max(0, Number(p.stock||0) - qty)} : p;
+      });
+      setSales(nextSales);
+      setProducts(nextProducts);
+      const ok = await persist({ sales: nextSales, products: nextProducts });
+      if (ok) {
+        notify(`Venda registrada com sucesso: ${c.name} • ${money(sale.total)}`);
+        setScreen('historico');
+        return true;
+      }
+      return false;
+    }
+
+    const tx = await mutateSharedWorkspace((workspace) => {
+      const c = workspace.customers.find(x => x.id === form.customerId);
+      if (!c) return { ok: false, error: 'Selecione um cliente válido.' };
+
+      const totalsByProduct = {};
+      let saleTotal = 0;
+      for (const item of validatedItems) {
+        const p = workspace.products.find(x=>x.id===item.productId);
+        if (!p) return { ok: false, error: 'Selecione um sabor válido em todos os itens.' };
+        totalsByProduct[item.productId] = (totalsByProduct[item.productId] || 0) + item.qty;
+        saleTotal += Number(p.price || 0) * item.qty;
+      }
+
+      for (const p of workspace.products) {
+        const requested = Number(totalsByProduct[p.id] || 0);
+        if (requested > Number(p.stock || 0)) {
+          return { ok: false, error: `Estoque insuficiente para ${p.name}. Disponível: ${p.stock}.` };
+        }
+      }
+
+      const sale = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        customerId: c.id,
+        items: validatedItems,
+        total: saleTotal,
+        paid: Boolean(form.paid),
+        method: form.paid ? (form.method||'Pix') : 'Pendente',
+        date: form.purchaseDate || today(0),
+        purchaseDate: form.purchaseDate || today(0),
+        dueDate: form.dueDate || today(0),
+        sellerId: user.id,
+        sellerName: user.name || user.email || 'Vendedor',
+        sellerEmail: user.email || ''
+      };
+
+      const nextProducts = workspace.products.map(p => {
+        const qty = totalsByProduct[p.id] || 0;
+        return qty ? {...p, stock: Math.max(0, Number(p.stock||0) - qty)} : p;
+      });
+
+      return {
+        ok: true,
+        data: {
+          products: nextProducts,
+          customers: workspace.customers,
+          sales: [sale, ...workspace.sales],
+          settings: workspace.settings
+        }
+      };
     });
-    setSales(nextSales);
-    setProducts(nextProducts);
-    const ok = await persist({ sales: nextSales, products: nextProducts });
-    if (ok) {
-      notify(`Venda registrada com sucesso: ${c.name} • ${money(sale.total)}`);
+
+    if (tx.ok) {
+      const latestSale = tx.data.sales[0];
+      const c = tx.data.customers.find(x => x.id === latestSale.customerId);
+      notify(`Venda registrada com sucesso: ${c?.name || 'Cliente'} • ${money(latestSale.total)}`);
       setScreen('historico');
       return true;
     }
     return false;
   }
   async function markPaid(id){
-    const nextSales = sales.map(s=>s.id===id?{...s,paid:true,method:'Pix'}:s);
-    setSales(nextSales);
-    const ok = await persist({sales: nextSales});
-    if (ok) notify('Pagamento marcado como recebido.');
+    if (!hasFirebase) {
+      const nextSales = sales.map(s=>s.id===id?{...s,paid:true,method:'Pix'}:s);
+      setSales(nextSales);
+      const ok = await persist({sales: nextSales});
+      if (ok) notify('Pagamento marcado como recebido.');
+      return;
+    }
+    const tx = await mutateSharedWorkspace((workspace) => {
+      const exists = workspace.sales.some((s) => s.id === id);
+      if (!exists) return { ok: false, error: 'Venda não encontrada para marcar pagamento.' };
+      return {
+        ok: true,
+        data: {
+          products: workspace.products,
+          customers: workspace.customers,
+          sales: workspace.sales.map(s=>s.id===id?{...s,paid:true,method:'Pix'}:s),
+          settings: workspace.settings
+        }
+      };
+    });
+    if (tx.ok) notify('Pagamento marcado como recebido.');
   }
   async function delSale(id){
-    const sale = sales.find(s => s.id === id);
-    const restock = saleItems(sale || {}).reduce((acc, item) => ({
-      ...acc,
-      [item.productId]: (acc[item.productId] || 0) + Number(item.qty || 0)
-    }), {});
-    const nextProducts = products.map(p => {
-      const qty = Number(restock[p.id] || 0);
-      return qty ? { ...p, stock: Number(p.stock || 0) + qty } : p;
+    if (!hasFirebase) {
+      const sale = sales.find(s => s.id === id);
+      const restock = saleItems(sale || {}).reduce((acc, item) => ({
+        ...acc,
+        [item.productId]: (acc[item.productId] || 0) + Number(item.qty || 0)
+      }), {});
+      const nextProducts = products.map(p => {
+        const qty = Number(restock[p.id] || 0);
+        return qty ? { ...p, stock: Number(p.stock || 0) + qty } : p;
+      });
+      const nextSales = sales.filter(s=>s.id!==id);
+      setProducts(nextProducts);
+      setSales(nextSales);
+      const ok = await persist({sales: nextSales, products: nextProducts});
+      if (ok) notify('Venda excluída.');
+      return;
+    }
+    const tx = await mutateSharedWorkspace((workspace) => {
+      const target = workspace.sales.find((s) => s.id === id);
+      if (!target) return { ok: false, error: 'Venda não encontrada para exclusão.' };
+      const restock = saleItems(target).reduce((acc, item) => ({
+        ...acc,
+        [item.productId]: (acc[item.productId] || 0) + Number(item.qty || 0)
+      }), {});
+      const nextProducts = workspace.products.map(p => {
+        const qty = Number(restock[p.id] || 0);
+        return qty ? { ...p, stock: Number(p.stock || 0) + qty } : p;
+      });
+      return {
+        ok: true,
+        data: {
+          products: nextProducts,
+          customers: workspace.customers,
+          sales: workspace.sales.filter(s=>s.id!==id),
+          settings: workspace.settings
+        }
+      };
     });
-    const nextSales = sales.filter(s=>s.id!==id);
-    setProducts(nextProducts);
-    setSales(nextSales);
-    const ok = await persist({sales: nextSales, products: nextProducts});
-    if (ok) notify('Venda excluída.');
+    if (tx.ok) notify('Venda excluída.');
   }
   function logout(){ setUser(null); }
 
