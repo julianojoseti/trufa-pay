@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp, collection, getDocs, writeBatch } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { createRoot } from 'react-dom/client';
 import { Candy, Users, Package, ShoppingCart, MessageCircle, Plus, Search, DollarSign, TrendingUp, AlertCircle, CheckCircle2, Clock, Trash2, Heart, CalendarDays, Target, Settings, Download, History, LogOut, Lock, UserPlus, Database, WifiOff, Menu, X, Pencil, Save } from 'lucide-react';
 import './style.css';
@@ -69,33 +69,6 @@ const defaults = {
     sellerName:'Trufas do Casamento',
     whatsappTemplate:'Olá {{customerName}}!\n\nEstou passando para lembrar do pagamento das trufas.\nValor: {{total}}\nPix: {{pix}}\n\nObrigado!\n{{sellerName}}'
   }
-};
-
-const toList = (value) => (Array.isArray(value) ? value : []);
-const mergeById = (...lists) => {
-  const map = new Map();
-  lists.flat().forEach((item) => {
-    if (!item || item.id == null) return;
-    const id = String(item.id);
-    map.set(id, { ...item, id });
-  });
-  return [...map.values()];
-};
-const mergeWorkspaceData = (records) => {
-  const ordered = toList(records).sort((a, b) => Number(a?.clientRev || 0) - Number(b?.clientRev || 0));
-  return ordered.reduce((acc, record) => ({
-    products: mergeById(acc.products, toList(record?.products)),
-    customers: mergeById(acc.customers, toList(record?.customers)),
-    sales: mergeById(acc.sales, toList(record?.sales)),
-    settings: record?.settings ? { ...acc.settings, ...record.settings } : acc.settings,
-    clientRev: Math.max(acc.clientRev, Number(record?.clientRev || 0))
-  }), {
-    products: [],
-    customers: [],
-    sales: [],
-    settings: { ...defaults.settings },
-    clientRev: 0
-  });
 };
 
 function Login({ onLogin }) {
@@ -175,43 +148,49 @@ function App() {
     if (!user || !hasFirebase) return;
     const db = firestoreDb();
     const sharedRef = doc(db, 'workspaces', WORKSPACE_ID);
-    const workspacesRef = collection(db, 'workspaces');
+    const userRef = user.id && user.id !== WORKSPACE_ID ? doc(db, 'workspaces', user.id) : null;
     let unsub = () => {};
     let active = true;
 
-    async function syncCloudData(snapshot) {
+    async function ensureSharedSeed() {
       try {
-        const snap = snapshot ?? await getDocs(workspacesRef);
-        const docs = snap.docs.map((workspace) => workspace.data());
-        if (!docs.length) {
-          const seed = { ...defaults, clientRev: Date.now(), createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+        const [sharedSnap, currentUserSnap] = await Promise.all([
+          getDoc(sharedRef),
+          userRef ? getDoc(userRef) : Promise.resolve(null)
+        ]);
+        if (!sharedSnap.exists()) {
+          const fallback = currentUserSnap?.exists() ? currentUserSnap.data() : null;
+          const seed = {
+            products: Array.isArray(fallback?.products) ? fallback.products : [],
+            customers: Array.isArray(fallback?.customers) ? fallback.customers : [],
+            sales: Array.isArray(fallback?.sales) ? fallback.sales : [],
+            settings: fallback?.settings ? { ...defaults.settings, ...fallback.settings } : defaults.settings,
+            clientRev: Date.now(),
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          };
           await setDoc(sharedRef, seed, { merge: true });
-          if (!active) return;
-          setProducts(defaults.products);
-          setCustomers(defaults.customers);
-          setSales(defaults.sales);
-          setSettings(defaults.settings);
-          setCloudReady(true);
-          return;
         }
-        const merged = mergeWorkspaceData(docs);
-        if (!active) return;
-        if (merged.clientRev) lastLocalRev.current = Math.max(lastLocalRev.current, merged.clientRev);
-        setProducts(merged.products);
-        setCustomers(merged.customers);
-        setSales(merged.sales);
-        setSettings(merged.settings);
-        setCloudReady(true);
       } catch (err) {
-        console.error('Erro ao sincronizar Firestore:', err);
+        console.error('Erro ao preparar workspace shared:', err);
         if (active) setCloudReady(false);
       }
     }
 
     (async () => {
-      await syncCloudData();
-      unsub = onSnapshot(workspacesRef, (snap) => {
-        syncCloudData(snap);
+      await ensureSharedSeed();
+      unsub = onSnapshot(sharedRef, (snap) => {
+        const d = snap.data();
+        if (!d) return;
+        const remoteRev = Number(d.clientRev || 0);
+        if (remoteRev && remoteRev < lastLocalRev.current) return;
+        if (remoteRev) lastLocalRev.current = Math.max(lastLocalRev.current, remoteRev);
+        if (!active) return;
+        setProducts(Array.isArray(d.products) ? d.products : []);
+        setCustomers(Array.isArray(d.customers) ? d.customers : []);
+        setSales(Array.isArray(d.sales) ? d.sales : []);
+        setSettings(d.settings ? { ...defaults.settings, ...d.settings } : defaults.settings);
+        setCloudReady(true);
       }, (err) => {
         console.error('Erro Firestore:', err);
         if (active) setCloudReady(false);
@@ -293,6 +272,7 @@ function App() {
     const saleTotal = validatedItems.reduce((sum,item)=>{
       const p = products.find(x=>x.id===item.productId);
       if (!p) { notify('Selecione um sabor válido em todos os itens.', 'error'); throw new Error('Produto inválido'); }
+      if (item.qty > Number(p.stock || 0)) { notify(`Estoque insuficiente para ${p.name}. Disponível: ${p.stock}.`, 'error'); throw new Error('Estoque insuficiente'); }
       return sum + Number(p.price||0) * item.qty;
     },0);
     const sale = {
@@ -331,9 +311,19 @@ function App() {
     if (ok) notify('Pagamento marcado como recebido.');
   }
   async function delSale(id){
+    const sale = sales.find(s => s.id === id);
+    const restock = saleItems(sale || {}).reduce((acc, item) => ({
+      ...acc,
+      [item.productId]: (acc[item.productId] || 0) + Number(item.qty || 0)
+    }), {});
+    const nextProducts = products.map(p => {
+      const qty = Number(restock[p.id] || 0);
+      return qty ? { ...p, stock: Number(p.stock || 0) + qty } : p;
+    });
     const nextSales = sales.filter(s=>s.id!==id);
+    setProducts(nextProducts);
     setSales(nextSales);
-    const ok = await persist({sales: nextSales});
+    const ok = await persist({sales: nextSales, products: nextProducts});
     if (ok) notify('Venda excluída.');
   }
   function logout(){ setUser(null); }
@@ -349,7 +339,7 @@ function App() {
       {menu.map(([k,Icon,label])=><button key={k} className={screen===k?'active':''} onClick={()=>{setScreen(k);setMobileMenuOpen(false);}}><Icon size={20}/>{label}</button>)}
       <div className="sideFooter"><span>{user.online ? <><Database size={14}/> Online Firebase {cloudReady?'sincronizado':'conectando'}</> : <><WifiOff size={14}/> Modo demo/local</>}</span><strong>{user.name}</strong><button onClick={logout}><LogOut size={18}/>Sair</button></div>
     </aside>
-    <main><header><div><h1>{settings.coupleName}</h1></div><button className="secondary" onClick={()=>{ exportCsv(sales,customers,products); notify('Arquivo CSV gerado.'); }}><Download size={18}/>Exportar CSV</button></header>{actionBanner && <div className={`actionBanner ${actionBanner.type}`}><CheckCircle2 size={18}/><span>{actionBanner.message}</span></div>}{saving && <div className="syncBanner">Salvando alterações na nuvem...</div>}{screen==='dashboard'&&<Dashboard stats={stats} sales={sales} products={products} customers={customers} settings={settings} markPaid={markPaid}/>} {screen==='vendas'&&<NewSale products={products} customers={customers} onAdd={addSale}/>} {screen==='historico'&&<HistoryPage sales={sales} products={products} customers={customers} markPaid={markPaid} delSale={delSale} settings={settings}/>} {screen==='clientes'&&<Customers customers={customers} setCustomers={setCustomersSync} notify={notify}/>} {screen==='produtos'&&<Products products={products} setProducts={setProductsSync} notify={notify}/>} {screen==='config'&&<Config settings={settings} setSettings={setSettingsSync} notify={notify}/>}</main>
+    <main><header><div><h1>{settings.coupleName}</h1></div><button className="secondary" onClick={()=>{ exportCsv(sales,customers,products); notify('Arquivo CSV gerado.'); }}><Download size={18}/>Exportar CSV</button></header>{actionBanner && <div className={`actionBanner ${actionBanner.type}`}><CheckCircle2 size={18}/><span>{actionBanner.message}</span></div>}{saving && <div className="syncBanner">Salvando alterações na nuvem...</div>}{screen==='dashboard'&&<Dashboard stats={stats} sales={sales} products={products} customers={customers} settings={settings} markPaid={markPaid}/>} {screen==='vendas'&&<NewSale products={products} customers={customers} onAdd={addSale}/>} {screen==='historico'&&<HistoryPage sales={sales} products={products} customers={customers} markPaid={markPaid} delSale={delSale} settings={settings}/>} {screen==='clientes'&&<Customers customers={customers} sales={sales} setCustomers={setCustomersSync} notify={notify}/>} {screen==='produtos'&&<Products products={products} sales={sales} setProducts={setProductsSync} notify={notify}/>} {screen==='config'&&<Config settings={settings} setSettings={setSettingsSync} notify={notify}/>}</main>
   </div>;
 }
 function exportCsv(sales,customers,products){
@@ -424,7 +414,7 @@ function NewSale({products,customers,onAdd}){
   </section>;
 }
 function HistoryPage({sales,products,customers,markPaid,delSale,settings}){ const [q,setQ]=useState(''); const [status,setStatus]=useState('todos'); const filtered=sales.filter(s=>{ const c=customers.find(x=>x.id===s.customerId)?.name||''; const label=saleLabel(s,products); return (status==='todos'||(status==='pago'?s.paid:!s.paid)) && (c+label+(s.purchaseDate || s.date)+(s.sellerName || '')).toLowerCase().includes(q.toLowerCase()); }); return <section className="panel"><div className="historyTop"><h2><History/>Histórico de vendas</h2><button className="secondary" onClick={()=>exportCsv(filtered,customers,products)}><Download size={18}/>Exportar filtrado</button></div><div className="filters"><div className="search"><Search/><input placeholder="Buscar cliente, sabor ou data" value={q} onChange={e=>setQ(e.target.value)}/></div><select value={status} onChange={e=>setStatus(e.target.value)}><option value="todos">Todos</option><option value="pago">Pagos</option><option value="pendente">Pendentes</option></select></div><div className="table">{filtered.map(s=><SaleRow key={s.id} s={s} products={products} c={customers.find(c=>c.id===s.customerId)} settings={settings} markPaid={markPaid} delSale={delSale}/>)}</div></section>; }
-function Products({products,setProducts,notify}){
+function Products({products,sales,setProducts,notify}){
   const empty = {name:'',price:'',cost:'',stock:'',minStock:10};
   const [f,setF]=useState(empty);
   const [editingId,setEditingId]=useState(null);
@@ -473,12 +463,14 @@ function Products({products,setProducts,notify}){
   }
   function removeProduct(id){
     const product = products.find(p=>p.id===id);
+    const hasSales = sales.some((sale) => saleItems(sale).some((item) => item.productId === id));
+    if (hasSales) { notify('Não é possível remover sabor com vendas vinculadas.', 'error'); return; }
     if(!confirm(`Remover ${product?.name || 'este sabor'}?`)) return;
     setProducts(products.filter(x=>x.id!==id));
     if(editingId === id) resetForm();
     notify('Sabor removido.');
   }
   return <section className="split"><div className="panel"><h2>Sabores e estoque</h2>{products.map(p=><div className="product" key={p.id}><div><strong>{p.name}</strong><span>Venda {money(p.price)} • Custo {money(p.cost)} • Estoque {p.stock} • Mín. {p.minStock}</span><div className="stockActions"><button className="mini" onClick={()=>adjustStock(p.id,-1)}>-1</button><button className="mini" onClick={()=>adjustStock(p.id,1)}>+1</button><button className="mini" onClick={()=>startEdit(p)}><Pencil size={16}/>Editar</button></div></div><button className="iconBtn" onClick={()=>removeProduct(p.id)}><Trash2 size={16}/></button></div>)}</div><div className="panel"><h2>{editingId ? 'Editar sabor/estoque' : 'Adicionar sabor'}</h2>{['name','price','cost','stock','minStock'].map(k=><label key={k}>{k==='name'?'Nome':k==='price'?'Preço':k==='cost'?'Custo':k==='stock'?'Estoque':'Estoque mínimo'}<input type={k==='name'?'text':'number'} value={f[k]} onChange={e=>setF({...f,[k]:e.target.value})}/></label>)}<button className="primary wide" onClick={saveProduct}>{editingId ? <><Save/>Salvar alterações</> : <>Salvar</>}</button>{editingId && <button className="secondary wide" onClick={resetForm}>Cancelar edição</button>}</div></section>; }
-function Customers({customers,setCustomers,notify}){ const [f,setF]=useState({name:'',phone:'',address:''}); function add(){ if(!f.name||!f.phone){ notify('Informe nome e WhatsApp do cliente.', 'error'); return; } setCustomers([...customers,{...f,id:String(Date.now())}]); setF({name:'',phone:'',address:''}); notify('Cliente salvo com sucesso!'); } function removeCustomer(id){ setCustomers(customers.filter(x=>x.id!==id)); notify('Cliente removido.'); } return <section className="split"><div className="panel"><h2>Clientes</h2>{customers.map(c=><div className="product" key={c.id}><div><strong>{c.name}</strong><span>{c.phone} • {c.address}</span></div><button className="iconBtn" onClick={()=>removeCustomer(c.id)}><Trash2 size={16}/></button></div>)}</div><div className="panel"><h2>Novo cliente</h2><label>Nome<input value={f.name} onChange={e=>setF({...f,name:e.target.value})}/></label><label>WhatsApp<input value={f.phone} onChange={e=>setF({...f,phone:e.target.value})}/></label><label>Local<input value={f.address} onChange={e=>setF({...f,address:e.target.value})}/></label><button className="primary wide" onClick={add}>Salvar</button></div></section>; }
+function Customers({customers,sales,setCustomers,notify}){ const [f,setF]=useState({name:'',phone:'',address:''}); function add(){ if(!f.name||!f.phone){ notify('Informe nome e WhatsApp do cliente.', 'error'); return; } setCustomers([...customers,{...f,id:String(Date.now())}]); setF({name:'',phone:'',address:''}); notify('Cliente salvo com sucesso!'); } function removeCustomer(id){ const hasSales = sales.some(s=>s.customerId===id); if(hasSales){ notify('Não é possível remover cliente com vendas vinculadas.', 'error'); return; } setCustomers(customers.filter(x=>x.id!==id)); notify('Cliente removido.'); } return <section className="split"><div className="panel"><h2>Clientes</h2>{customers.map(c=><div className="product" key={c.id}><div><strong>{c.name}</strong><span>{c.phone} • {c.address}</span></div><button className="iconBtn" onClick={()=>removeCustomer(c.id)}><Trash2 size={16}/></button></div>)}</div><div className="panel"><h2>Novo cliente</h2><label>Nome<input value={f.name} onChange={e=>setF({...f,name:e.target.value})}/></label><label>WhatsApp<input value={f.phone} onChange={e=>setF({...f,phone:e.target.value})}/></label><label>Local<input value={f.address} onChange={e=>setF({...f,address:e.target.value})}/></label><button className="primary wide" onClick={add}>Salvar</button></div></section>; }
 function Config({settings,setSettings,notify}){ const [f,setF]=useState(settings); function saveSettings(){ setSettings({...f,goal:Number(f.goal)}); notify('Configurações salvas com sucesso!'); } return <section className="panel narrow"><h2>Configurações</h2><label>Nome do projeto<input value={f.coupleName} onChange={e=>setF({...f,coupleName:e.target.value})}/></label><label>Nome da venda<input value={f.sellerName} onChange={e=>setF({...f,sellerName:e.target.value})}/></label><label>Data do casamento<input type="date" value={f.weddingDate} onChange={e=>setF({...f,weddingDate:e.target.value})}/></label><label>Meta<input type="number" value={f.goal} onChange={e=>setF({...f,goal:e.target.value})}/></label><label>Chave Pix<input value={f.pixKey} onChange={e=>setF({...f,pixKey:e.target.value})}/></label><button className="primary wide" onClick={saveSettings}>Salvar configurações</button></section>; }
 createRoot(document.getElementById('root')).render(<App />);

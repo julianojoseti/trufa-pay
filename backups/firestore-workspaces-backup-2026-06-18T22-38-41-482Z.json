@@ -1,0 +1,1090 @@
+[
+  {
+    "id": "4ZigtuTA3MbYlZ0Jq3vlgrSPUGv2",
+    "products": [],
+    "sales": [],
+    "clientRev": 1781656330855,
+    "customers": [],
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1781656331,
+      "nanoseconds": 298000000
+    },
+    "settings": {
+      "sellerName": "vendas",
+      "goal": 20000,
+      "weddingDate": "2027-03-06",
+      "pixKey": "coloque a chave pix aqui",
+      "coupleName": "Dashboard"
+    },
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1781656331,
+      "nanoseconds": 298000000
+    }
+  },
+  {
+    "id": "cFthDDa3ZsMX8lZSFrVRQwx2KD83",
+    "clientRev": 1781657046483,
+    "sales": [],
+    "products": [
+      {
+        "cost": 0,
+        "id": "1781491878589",
+        "price": 3.5,
+        "stock": 0,
+        "minStock": 5,
+        "name": "Trufa de Morango"
+      },
+      {
+        "name": "Trufa de Nutella",
+        "stock": 0,
+        "minStock": 5,
+        "cost": 0,
+        "price": 4.5,
+        "id": "1781491920918"
+      }
+    ],
+    "customers": [],
+    "settings": {
+      "goal": 10000,
+      "weddingDate": "2027-03-06",
+      "pixKey": "sua-chave-pix",
+      "coupleName": "Missão Aliança",
+      "sellerName": "Trufas Yan & Tay"
+    },
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1781657046,
+      "nanoseconds": 608000000
+    }
+  },
+  {
+    "id": "demo",
+    "settings": {
+      "sellerName": "Trufas do Casamento",
+      "goal": 15000,
+      "weddingDate": "2026-12-12",
+      "pixKey": "sua-chave-pix",
+      "coupleName": "Projeto Casamento"
+    },
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1781654449,
+      "nanoseconds": 203000000
+    },
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1781654473,
+      "nanoseconds": 387000000
+    },
+    "products": [
+      {
+        "stock": 33,
+        "minStock": 10,
+        "price": 4.5,
+        "id": "p1",
+        "cost": 1.8,
+        "name": "Trufa de Brigadeiro"
+      },
+      {
+        "name": "Trufa de Ninho",
+        "minStock": 10,
+        "stock": 30,
+        "cost": 2,
+        "price": 5,
+        "id": "p2"
+      },
+      {
+        "name": "Trufa de Morango",
+        "stock": 20,
+        "minStock": 8,
+        "price": 5,
+        "cost": 2.1,
+        "id": "p3"
+      }
+    ],
+    "sales": [
+      {
+        "sellerName": "Admin",
+        "method": "Pix",
+        "dueDate": "2026-06-15",
+        "productId": "p1",
+        "total": 4.5,
+        "customerId": "c1",
+        "qty": 1,
+        "id": "1781497527479",
+        "date": "2026-06-15",
+        "paid": true
+      },
+      {
+        "paid": true,
+        "date": "2026-06-15",
+        "id": "1781497526946",
+        "qty": 1,
+        "total": 4.5,
+        "customerId": "c1",
+        "productId": "p1",
+        "dueDate": "2026-06-15",
+        "method": "Pix",
+        "sellerName": "Admin"
+      },
+      {
+        "sellerName": "Admin",
+        "method": "Pendente",
+        "dueDate": "2026-06-15",
+        "productId": "p1",
+        "customerId": "c1",
+        "total": 4.5,
+        "qty": 1,
+        "date": "2026-06-15",
+        "id": "1781497178635",
+        "paid": false
+      },
+      {
+        "dueDate": "2026-06-15",
+        "productId": "p1",
+        "customerId": "c1",
+        "total": 4.5,
+        "qty": 1,
+        "date": "2026-06-15",
+        "id": "1781497178351",
+        "paid": false,
+        "sellerName": "Admin",
+        "method": "Pendente"
+      },
+      {
+        "sellerName": "Admin",
+        "method": "Pendente",
+        "customerId": "c1",
+        "total": 4.5,
+        "qty": 1,
+        "id": "1781497177918",
+        "date": "2026-06-15",
+        "paid": false,
+        "dueDate": "2026-06-15",
+        "productId": "p1"
+      },
+      {
+        "sellerName": "Admin",
+        "method": "Pix",
+        "dueDate": "2026-06-15",
+        "productId": "p1",
+        "qty": 1,
+        "total": 4.5,
+        "customerId": "c1",
+        "paid": true,
+        "date": "2026-06-15",
+        "id": "1781497175535"
+      },
+      {
+        "productId": "p1",
+        "dueDate": "2026-06-15",
+        "paid": true,
+        "id": "1781497174269",
+        "date": "2026-06-15",
+        "qty": 1,
+        "total": 4.5,
+        "customerId": "c1",
+        "method": "Pix",
+        "sellerName": "Admin"
+      },
+      {
+        "dueDate": "2026-06-15",
+        "productId": "p2",
+        "qty": 4,
+        "customerId": "c1",
+        "total": 20,
+        "paid": false,
+        "date": "2026-06-14",
+        "id": "s1",
+        "sellerName": "Admin",
+        "method": "Pendente"
+      },
+      {
+        "dueDate": "2026-06-15",
+        "productId": "p1",
+        "qty": 3,
+        "customerId": "c2",
+        "total": 13.5,
+        "paid": true,
+        "id": "s2",
+        "date": "2026-06-15",
+        "sellerName": "Admin",
+        "method": "Pix"
+      }
+    ],
+    "clientRev": 1781654473049,
+    "customers": [
+      {
+        "name": "Maria Souza",
+        "phone": "5511999999999",
+        "id": "c1",
+        "address": "Centro"
+      }
+    ]
+  },
+  {
+    "id": "hpKJuCP81cPppRT1X2H8KbQVPLJ3",
+    "settings": {
+      "sellerName": "Trufas do Casamento",
+      "coupleName": "Projeto Casamento",
+      "pixKey": "sua-chave-pix",
+      "whatsappTemplate": "Olá {{customerName}}!\n\nEstou passando para lembrar do pagamento das trufas.\nValor: {{total}}\nPix: {{pix}}\n\nObrigado!\n{{sellerName}}",
+      "weddingDate": "2027-03-06",
+      "goal": 15000
+    },
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1781659635,
+      "nanoseconds": 966000000
+    },
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1781821943,
+      "nanoseconds": 486000000
+    },
+    "sales": [
+      {
+        "sellerName": "Admin",
+        "method": "Pix",
+        "dueDate": "2026-06-15",
+        "productId": "p1",
+        "customerId": "c1",
+        "total": 4.5,
+        "qty": 1,
+        "id": "1781497527479",
+        "date": "2026-06-15",
+        "paid": true
+      },
+      {
+        "method": "Pix",
+        "sellerName": "Admin",
+        "productId": "p1",
+        "dueDate": "2026-06-15",
+        "paid": true,
+        "date": "2026-06-15",
+        "id": "1781497526946",
+        "qty": 1,
+        "total": 4.5,
+        "customerId": "c1"
+      },
+      {
+        "sellerName": "Admin",
+        "method": "Pendente",
+        "dueDate": "2026-06-15",
+        "productId": "p1",
+        "qty": 1,
+        "total": 4.5,
+        "customerId": "c1",
+        "paid": false,
+        "id": "1781497178635",
+        "date": "2026-06-15"
+      },
+      {
+        "sellerName": "Admin",
+        "method": "Pendente",
+        "total": 4.5,
+        "customerId": "c1",
+        "qty": 1,
+        "id": "1781497178351",
+        "date": "2026-06-15",
+        "paid": false,
+        "dueDate": "2026-06-15",
+        "productId": "p1"
+      },
+      {
+        "sellerName": "Admin",
+        "method": "Pendente",
+        "total": 4.5,
+        "customerId": "c1",
+        "qty": 1,
+        "id": "1781497177918",
+        "date": "2026-06-15",
+        "paid": false,
+        "dueDate": "2026-06-15",
+        "productId": "p1"
+      },
+      {
+        "dueDate": "2026-06-15",
+        "productId": "p1",
+        "total": 4.5,
+        "customerId": "c1",
+        "qty": 1,
+        "date": "2026-06-15",
+        "id": "1781497175535",
+        "paid": true,
+        "sellerName": "Admin",
+        "method": "Pix"
+      },
+      {
+        "dueDate": "2026-06-15",
+        "productId": "p1",
+        "qty": 1,
+        "total": 4.5,
+        "customerId": "c1",
+        "paid": true,
+        "date": "2026-06-15",
+        "id": "1781497174269",
+        "sellerName": "Admin",
+        "method": "Pix"
+      },
+      {
+        "method": "Pendente",
+        "sellerName": "Admin",
+        "paid": false,
+        "date": "2026-06-16",
+        "id": "s1",
+        "qty": 4,
+        "customerId": "c1",
+        "total": 20,
+        "productId": "p2",
+        "dueDate": "2026-06-17"
+      },
+      {
+        "dueDate": "2026-06-17",
+        "productId": "p1",
+        "customerId": "c2",
+        "total": 13.5,
+        "qty": 3,
+        "date": "2026-06-17",
+        "id": "s2",
+        "paid": true,
+        "sellerName": "Admin",
+        "method": "Pix"
+      },
+      {
+        "date": "2026-06-19",
+        "total": 8,
+        "purchaseDate": "2026-06-19",
+        "sellerEmail": "yan.ximenes10@gmail.com",
+        "sellerName": "Yan Ximenes",
+        "productId": "1781660905057",
+        "dueDate": "2026-06-17",
+        "sellerId": "hpKJuCP81cPppRT1X2H8KbQVPLJ3",
+        "id": "1781693088436",
+        "paid": true,
+        "customerId": "1781662430628",
+        "qty": 2,
+        "method": "Pix"
+      }
+    ],
+    "products": [
+      {
+        "cost": 0,
+        "price": 3.5,
+        "id": "p1",
+        "stock": 40,
+        "minStock": 10,
+        "name": "Trufa de Brigadeiro"
+      },
+      {
+        "name": "Trufa de Ninho",
+        "stock": 30,
+        "minStock": 10,
+        "price": 5,
+        "id": "p2",
+        "cost": 2
+      },
+      {
+        "price": 3.5,
+        "cost": 0,
+        "id": "1781491878589",
+        "minStock": 5,
+        "stock": 0,
+        "name": "Trufa de Morango"
+      },
+      {
+        "id": "1781491920918",
+        "cost": 0,
+        "price": 4.5,
+        "minStock": 5,
+        "stock": 0,
+        "name": "Trufa de Nutella"
+      },
+      {
+        "name": "Trufa de Prestígio",
+        "stock": 5,
+        "minStock": 5,
+        "id": "1781660231290",
+        "cost": 0,
+        "price": 3.5
+      },
+      {
+        "minStock": 5,
+        "stock": 10,
+        "cost": 0,
+        "id": "1781660298016",
+        "price": 4,
+        "name": "Trufa de Sensação Branca"
+      },
+      {
+        "name": "Trufa Tradicional",
+        "price": 3.5,
+        "id": "1781660373973",
+        "cost": 0,
+        "stock": 9,
+        "minStock": 5
+      },
+      {
+        "cost": 0,
+        "price": 5,
+        "id": "1781660469198",
+        "stock": 20,
+        "minStock": 5,
+        "name": "Trufa de Nutella"
+      },
+      {
+        "cost": 0,
+        "id": "1781660579178",
+        "price": 5,
+        "minStock": 5,
+        "stock": 24,
+        "name": "Trufa de Bueno"
+      },
+      {
+        "name": "Galak c/ Negresco",
+        "stock": 11,
+        "minStock": 5,
+        "cost": 0,
+        "price": 5,
+        "id": "1781660739336"
+      },
+      {
+        "name": "Trufa de Maracujá",
+        "price": 4,
+        "cost": 0,
+        "id": "1781660905057",
+        "stock": 1,
+        "minStock": 5
+      },
+      {
+        "cost": 0,
+        "id": "1781660935117",
+        "price": 4,
+        "stock": 2,
+        "minStock": 5,
+        "name": "Trufa de Limão"
+      },
+      {
+        "stock": 3,
+        "minStock": 5,
+        "cost": 0,
+        "id": "1781660995064",
+        "price": 4,
+        "name": "Trufa Branca"
+      }
+    ],
+    "clientRev": 1781821943121,
+    "customers": [
+      {
+        "address": "Centro",
+        "phone": "5511999999999",
+        "name": "Maria Souza",
+        "id": "c1"
+      },
+      {
+        "address": "Trabalho",
+        "id": "c2",
+        "phone": "5511988888888",
+        "name": "João Lima"
+      },
+      {
+        "address": "casa",
+        "phone": "11974126824",
+        "name": "juliano",
+        "id": "1781665619228"
+      },
+      {
+        "id": "1781665635659",
+        "phone": "119741126824",
+        "name": "yaline ",
+        "address": "trabalho"
+      },
+      {
+        "address": "colegio",
+        "id": "1781665652360",
+        "name": "Thayanara",
+        "phone": "11974126824"
+      },
+      {
+        "address": "Trabalho",
+        "id": "1781661285370",
+        "phone": "15 99122-7141",
+        "name": "Wesley Souza APF"
+      },
+      {
+        "phone": "15 98102-2277",
+        "name": "Victor Athayde Aurora",
+        "id": "1781661407335",
+        "address": "Trabalho"
+      },
+      {
+        "id": "1781661456987",
+        "phone": "15 99138-8390",
+        "name": "Vitinho ",
+        "address": "Tranquilo "
+      },
+      {
+        "address": "Trabalho",
+        "phone": "15 99788-0745",
+        "name": "Vitor Mirim ",
+        "id": "1781661517980"
+      },
+      {
+        "id": "1781661581626",
+        "phone": "15 99660-5172",
+        "name": "Yasmim Rocha",
+        "address": "Trabalho "
+      },
+      {
+        "name": "Abner Narciso",
+        "phone": "15 99258-8965",
+        "id": "1781661659775",
+        "address": "Trabalho"
+      },
+      {
+        "phone": "15 99773‑5246‬",
+        "name": "Miguel APF",
+        "id": "1781661744579",
+        "address": "Trabalho "
+      },
+      {
+        "address": "Trabalho ",
+        "phone": "15 99831-9441",
+        "name": "Elcio Aurora",
+        "id": "1781662306731"
+      },
+      {
+        "address": "Trabalho ",
+        "phone": "15 99663-7132",
+        "name": "Gustavo Aurora ",
+        "id": "1781662371732"
+      },
+      {
+        "address": "Trabalho",
+        "id": "1781662430628",
+        "phone": "15 98813-0113",
+        "name": "Jonatinha "
+      },
+      {
+        "phone": "15 99638-0302",
+        "name": "Cesar Aurora ",
+        "id": "1781662486047",
+        "address": "Trabalho"
+      },
+      {
+        "name": "Kauan Carioca Aurora ",
+        "phone": "21 98172-7175",
+        "id": "1781662539271",
+        "address": "Trabalho"
+      },
+      {
+        "address": "Trabalho ",
+        "name": "Leandro Lanes Aurora ",
+        "phone": "15 99748-9746",
+        "id": "1781662814350"
+      },
+      {
+        "address": "Casa",
+        "name": "Thay",
+        "phone": "15 99817-1209",
+        "id": "1781689609859"
+      }
+    ]
+  },
+  {
+    "id": "jBi18Aa945Vmi9GQLmFriFOtgFF3",
+    "settings": {
+      "sellerName": "Thay & Yan",
+      "goal": 20000,
+      "weddingDate": "2027-03-06",
+      "pixKey": "coloque a chave pix aqui",
+      "coupleName": "Dashboard"
+    },
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1781665652,
+      "nanoseconds": 379000000
+    },
+    "sales": [],
+    "clientRev": 1781665652360,
+    "products": [],
+    "customers": [
+      {
+        "address": "casa",
+        "phone": "11974126824",
+        "name": "juliano",
+        "id": "1781665619228"
+      },
+      {
+        "id": "1781665635659",
+        "phone": "119741126824",
+        "name": "yaline ",
+        "address": "trabalho"
+      },
+      {
+        "id": "1781665652360",
+        "name": "Thayanara",
+        "phone": "11974126824",
+        "address": "colegio"
+      }
+    ]
+  },
+  {
+    "id": "shared",
+    "customers": [
+      {
+        "phone": "5511999999999",
+        "name": "Maria Souza",
+        "id": "c1",
+        "address": "Centro"
+      },
+      {
+        "phone": "5511988888888",
+        "name": "João Lima",
+        "id": "c2",
+        "address": "Trabalho"
+      },
+      {
+        "name": "juliano",
+        "phone": "11974126824",
+        "id": "1781665619228",
+        "address": "casa"
+      },
+      {
+        "address": "trabalho",
+        "phone": "119741126824",
+        "name": "yaline ",
+        "id": "1781665635659"
+      },
+      {
+        "address": "colegio",
+        "name": "Thayanara",
+        "phone": "11974126824",
+        "id": "1781665652360"
+      },
+      {
+        "address": "Trabalho",
+        "name": "Wesley Souza APF",
+        "phone": "15 99122-7141",
+        "id": "1781661285370"
+      },
+      {
+        "address": "Trabalho",
+        "name": "Victor Athayde Aurora",
+        "phone": "15 98102-2277",
+        "id": "1781661407335"
+      },
+      {
+        "address": "Tranquilo ",
+        "name": "Vitinho ",
+        "phone": "15 99138-8390",
+        "id": "1781661456987"
+      },
+      {
+        "address": "Trabalho",
+        "id": "1781661517980",
+        "phone": "15 99788-0745",
+        "name": "Vitor Mirim "
+      },
+      {
+        "id": "1781661581626",
+        "name": "Yasmim Rocha",
+        "phone": "15 99660-5172",
+        "address": "Trabalho "
+      },
+      {
+        "phone": "15 99258-8965",
+        "name": "Abner Narciso",
+        "id": "1781661659775",
+        "address": "Trabalho"
+      },
+      {
+        "name": "Miguel APF",
+        "phone": "15 99773‑5246‬",
+        "id": "1781661744579",
+        "address": "Trabalho "
+      },
+      {
+        "name": "Elcio Aurora",
+        "phone": "15 99831-9441",
+        "id": "1781662306731",
+        "address": "Trabalho "
+      },
+      {
+        "name": "Gustavo Aurora ",
+        "phone": "15 99663-7132",
+        "id": "1781662371732",
+        "address": "Trabalho "
+      },
+      {
+        "address": "Trabalho",
+        "id": "1781662430628",
+        "name": "Jonatinha ",
+        "phone": "15 98813-0113"
+      },
+      {
+        "address": "Trabalho",
+        "phone": "15 99638-0302",
+        "name": "Cesar Aurora ",
+        "id": "1781662486047"
+      },
+      {
+        "address": "Trabalho",
+        "id": "1781662539271",
+        "phone": "21 98172-7175",
+        "name": "Kauan Carioca Aurora "
+      },
+      {
+        "phone": "15 99748-9746",
+        "name": "Leandro Lanes Aurora ",
+        "id": "1781662814350",
+        "address": "Trabalho "
+      },
+      {
+        "name": "Thay",
+        "phone": "15 99817-1209",
+        "id": "1781689609859",
+        "address": "Casa"
+      }
+    ],
+    "clientRev": 1781821943121,
+    "products": [
+      {
+        "price": 3.5,
+        "id": "p1",
+        "cost": 0,
+        "minStock": 10,
+        "stock": 40,
+        "name": "Trufa de Brigadeiro"
+      },
+      {
+        "minStock": 10,
+        "stock": 30,
+        "price": 5,
+        "cost": 2,
+        "id": "p2",
+        "name": "Trufa de Ninho"
+      },
+      {
+        "name": "Trufa de Morango",
+        "price": 3.5,
+        "id": "1781491878589",
+        "cost": 0,
+        "stock": 0,
+        "minStock": 5
+      },
+      {
+        "name": "Trufa de Nutella",
+        "stock": 0,
+        "minStock": 5,
+        "id": "1781491920918",
+        "cost": 0,
+        "price": 4.5
+      },
+      {
+        "minStock": 5,
+        "stock": 5,
+        "id": "1781660231290",
+        "price": 3.5,
+        "cost": 0,
+        "name": "Trufa de Prestígio"
+      },
+      {
+        "price": 4,
+        "cost": 0,
+        "id": "1781660298016",
+        "minStock": 5,
+        "stock": 10,
+        "name": "Trufa de Sensação Branca"
+      },
+      {
+        "name": "Trufa Tradicional",
+        "minStock": 5,
+        "stock": 9,
+        "price": 3.5,
+        "id": "1781660373973",
+        "cost": 0
+      },
+      {
+        "name": "Trufa de Nutella",
+        "stock": 20,
+        "minStock": 5,
+        "cost": 0,
+        "price": 5,
+        "id": "1781660469198"
+      },
+      {
+        "name": "Trufa de Bueno",
+        "minStock": 5,
+        "stock": 24,
+        "cost": 0,
+        "price": 5,
+        "id": "1781660579178"
+      },
+      {
+        "name": "Galak c/ Negresco",
+        "stock": 11,
+        "minStock": 5,
+        "cost": 0,
+        "price": 5,
+        "id": "1781660739336"
+      },
+      {
+        "name": "Trufa de Maracujá",
+        "minStock": 5,
+        "stock": 1,
+        "id": "1781660905057",
+        "price": 4,
+        "cost": 0
+      },
+      {
+        "stock": 2,
+        "minStock": 5,
+        "cost": 0,
+        "id": "1781660935117",
+        "price": 4,
+        "name": "Trufa de Limão"
+      },
+      {
+        "name": "Trufa Branca",
+        "minStock": 5,
+        "stock": 3,
+        "id": "1781660995064",
+        "price": 4,
+        "cost": 0
+      }
+    ],
+    "sales": [
+      {
+        "sellerName": "Admin",
+        "method": "Pix",
+        "dueDate": "2026-06-15",
+        "productId": "p1",
+        "qty": 1,
+        "customerId": "c1",
+        "total": 4.5,
+        "paid": true,
+        "id": "1781497527479",
+        "date": "2026-06-15"
+      },
+      {
+        "method": "Pix",
+        "sellerName": "Admin",
+        "productId": "p1",
+        "dueDate": "2026-06-15",
+        "id": "1781497526946",
+        "date": "2026-06-15",
+        "paid": true,
+        "total": 4.5,
+        "customerId": "c1",
+        "qty": 1
+      },
+      {
+        "qty": 1,
+        "customerId": "c1",
+        "total": 4.5,
+        "paid": false,
+        "id": "1781497178635",
+        "date": "2026-06-15",
+        "dueDate": "2026-06-15",
+        "productId": "p1",
+        "sellerName": "Admin",
+        "method": "Pendente"
+      },
+      {
+        "sellerName": "Admin",
+        "method": "Pendente",
+        "dueDate": "2026-06-15",
+        "productId": "p1",
+        "customerId": "c1",
+        "total": 4.5,
+        "qty": 1,
+        "date": "2026-06-15",
+        "id": "1781497178351",
+        "paid": false
+      },
+      {
+        "dueDate": "2026-06-15",
+        "productId": "p1",
+        "qty": 1,
+        "customerId": "c1",
+        "total": 4.5,
+        "paid": false,
+        "date": "2026-06-15",
+        "id": "1781497177918",
+        "sellerName": "Admin",
+        "method": "Pendente"
+      },
+      {
+        "total": 4.5,
+        "customerId": "c1",
+        "qty": 1,
+        "date": "2026-06-15",
+        "id": "1781497175535",
+        "paid": true,
+        "dueDate": "2026-06-15",
+        "productId": "p1",
+        "sellerName": "Admin",
+        "method": "Pix"
+      },
+      {
+        "method": "Pix",
+        "sellerName": "Admin",
+        "id": "1781497174269",
+        "date": "2026-06-15",
+        "paid": true,
+        "total": 4.5,
+        "customerId": "c1",
+        "qty": 1,
+        "productId": "p1",
+        "dueDate": "2026-06-15"
+      },
+      {
+        "date": "2026-06-16",
+        "id": "s1",
+        "paid": false,
+        "customerId": "c1",
+        "total": 20,
+        "qty": 4,
+        "productId": "p2",
+        "dueDate": "2026-06-17",
+        "method": "Pendente",
+        "sellerName": "Admin"
+      },
+      {
+        "productId": "p1",
+        "dueDate": "2026-06-17",
+        "date": "2026-06-17",
+        "id": "s2",
+        "paid": true,
+        "total": 13.5,
+        "customerId": "c2",
+        "qty": 3,
+        "method": "Pix",
+        "sellerName": "Admin"
+      },
+      {
+        "qty": 2,
+        "customerId": "1781662430628",
+        "paid": true,
+        "id": "1781693088436",
+        "sellerId": "hpKJuCP81cPppRT1X2H8KbQVPLJ3",
+        "dueDate": "2026-06-17",
+        "productId": "1781660905057",
+        "method": "Pix",
+        "total": 8,
+        "date": "2026-06-19",
+        "sellerName": "Yan Ximenes",
+        "sellerEmail": "yan.ximenes10@gmail.com",
+        "purchaseDate": "2026-06-19"
+      }
+    ],
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1781821943,
+      "nanoseconds": 486000000
+    },
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1781746973,
+      "nanoseconds": 153000000
+    },
+    "settings": {
+      "sellerName": "Trufas do Casamento",
+      "weddingDate": "2027-03-06",
+      "goal": 15000,
+      "whatsappTemplate": "Olá {{customerName}}!\n\nEstou passando para lembrar do pagamento das trufas.\nValor: {{total}}\nPix: {{pix}}\n\nObrigado!\n{{sellerName}}",
+      "coupleName": "Projeto Casamento",
+      "pixKey": "sua-chave-pix"
+    }
+  },
+  {
+    "id": "xbBwjhMhsYSqKQfExs5fo3Rk1mr2",
+    "updatedAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1781656476,
+      "nanoseconds": 287000000
+    },
+    "createdAt": {
+      "type": "firestore/timestamp/1.0",
+      "seconds": 1781656409,
+      "nanoseconds": 837000000
+    },
+    "settings": {
+      "sellerName": "Trufas do Casamento",
+      "weddingDate": "2027-03-06",
+      "goal": 15000,
+      "pixKey": "sua-chave-pix",
+      "coupleName": "Projeto Casamento"
+    },
+    "customers": [
+      {
+        "phone": "5511999999999",
+        "name": "Maria Souza",
+        "id": "c1",
+        "address": "Centro"
+      },
+      {
+        "address": "Trabalho",
+        "phone": "5511988888888",
+        "name": "João Lima",
+        "id": "c2"
+      }
+    ],
+    "products": [
+      {
+        "name": "Trufa de Brigadeiro",
+        "minStock": 10,
+        "stock": 40,
+        "price": 4.5,
+        "id": "p1",
+        "cost": 1.8
+      },
+      {
+        "cost": 2,
+        "id": "p2",
+        "price": 5,
+        "stock": 30,
+        "minStock": 10,
+        "name": "Trufa de Ninho"
+      },
+      {
+        "price": 5,
+        "id": "p3",
+        "cost": 2.1,
+        "minStock": 8,
+        "stock": 20,
+        "name": "Trufa de Morango"
+      }
+    ],
+    "sales": [
+      {
+        "sellerName": "Admin",
+        "method": "Pendente",
+        "customerId": "c1",
+        "total": 20,
+        "qty": 4,
+        "id": "s1",
+        "date": "2026-06-16",
+        "paid": false,
+        "dueDate": "2026-06-17",
+        "productId": "p2"
+      },
+      {
+        "paid": true,
+        "date": "2026-06-17",
+        "id": "s2",
+        "qty": 3,
+        "customerId": "c2",
+        "total": 13.5,
+        "productId": "p1",
+        "dueDate": "2026-06-17",
+        "method": "Pix",
+        "sellerName": "Admin"
+      }
+    ],
+    "clientRev": 1781656476135
+  }
+]
