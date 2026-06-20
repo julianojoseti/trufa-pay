@@ -24,3 +24,10 @@
 .google:hover{box-shadow:0 8px 20px rgba(0,0,0,.06)}
 .google img{width:18px;height:18px}
 @media(max-width:900px){ .google{width:100%;} }
+
+.dueHint{display:inline-flex;align-items:center;margin-top:7px;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:800;border:1px solid transparent}
+.dueHint.late{background:#ffe8e8;color:#9b1c1c;border-color:#f3b5b5}
+.dueHint.today{background:#fff1da;color:#8a5500;border-color:#f1d08a}
+.dueHint.soon{background:#e8f3ff;color:#0f4b8a;border-color:#b8d4f5}
+.dueHint.future{background:#eefaf0;color:#16613a;border-color:#bfe4cb}
+.dueHint.none{background:#f3f3f3;color:#5f5f5f;border-color:#dbdbdb}
