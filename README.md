@@ -1,20 +1,25 @@
-# TrufaPay Casamento - Fix feedback e contabilização
+# TrufaPay Casamento
 
-Versão com:
-- Feedback visual fixo após criar/salvar/excluir/marcar pago.
-- Indicador de salvamento na nuvem.
-- Correção no fluxo de persistência para contabilizar venda imediatamente e sincronizar no Firestore.
+## Objetivo
+Manter paridade de versão entre ambiente local, Git e Vercel para evitar conflitos.
+
+## Regras de versão
+- Node: 22.x
+- npm: 10.x
+- Dependências travadas em versões exatas no package.json
+- Instalação sempre com npm ci
 
 ## Rodar local
-```bash
-npm install
-npm run dev
-```
+1. npm ci
+2. npm run dev
 
-## Publicar
-```bash
-git add .
-git commit -m "corrige feedback e contabilizacao de vendas"
-git push
-```
-deploy Mon Jun 15 01:13:59 -03 2026
+## Fluxo único de release
+1. Desenvolver em branch local
+2. Rodar npm ci e npm run build
+3. Commitar mudanças de código
+4. Fazer push para main
+5. Deixar a Vercel publicar a partir do commit da main
+
+## Política de deploy
+- Evitar deploy manual com npx vercel --prod quando o objetivo for manter rastreabilidade exata com Git.
+- A referência oficial de produção deve ser sempre o commit que está na main.
